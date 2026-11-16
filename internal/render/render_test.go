@@ -20,6 +20,16 @@ func TestSVGDeterministic(t *testing.T) {
 	}
 }
 
+func TestMarkdownCarriesStats(t *testing.T) {
+	r := Report{Impact: graph.Impact{Affected: []graph.Affected{{NodeID: "n05"}}}}
+	r.After.Provenance.HeadSHA = "abc1234"
+	r.Diff.Summary = graph.ChangeSummary{NodesAdded: 2, NodesModified: 1, EdgesAdded: 3}
+	md := Markdown(r)
+	if !strings.Contains(md, "<!-- impactr-comment:v1 -->") || !strings.Contains(md, "impactr-stats:v1 nodes=3 edges=3 affected=1 head=abc1234") {
+		t.Fatalf("missing marker or stats line: %s", md)
+	}
+}
+
 func chain() graph.Diff {
 	var d graph.Diff
 	for i := 0; i < 12; i++ {
@@ -44,7 +54,7 @@ func TestSVGNodesInsideCanvas(t *testing.T) {
 	}
 	width, _ := strconv.Atoi(dims[1])
 	height, _ := strconv.Atoi(dims[2])
-	nodes := regexp.MustCompile(`<rect x="(\d+)" y="(\d+)" width="` + strconv.Itoa(nodeW) + `" height="` + strconv.Itoa(nodeH) + `"`).FindAllStringSubmatch(s, -1)
+	nodes := regexp.MustCompile(`<rect x="(\d+)" y="(\d+)" width="`+strconv.Itoa(nodeW)+`" height="`+strconv.Itoa(nodeH)+`"`).FindAllStringSubmatch(s, -1)
 	if len(nodes) != 12 {
 		t.Fatalf("expected 12 node rects, got %d", len(nodes))
 	}

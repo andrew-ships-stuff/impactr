@@ -46,8 +46,8 @@ const (
 )
 
 type placement struct {
-	pos            map[string]point
-	width, height  int
+	pos           map[string]point
+	width, height int
 }
 
 // layout places nodes in deterministic left-to-right dependency layers:
@@ -222,7 +222,7 @@ func layout(d graph.Diff, max int) placement {
 		y0 := margin + (blockH-colH)/2
 		x := x0 + l*(nodeW+gapX)
 		for i, id := range layer {
-			pos[id] = point{x, y0 + i*(nodeH + rowGap)}
+			pos[id] = point{x, y0 + i*(nodeH+rowGap)}
 		}
 	}
 	return placement{pos: pos, width: width, height: height}
@@ -487,7 +487,9 @@ func Terminal(w io.Writer, r Report) error {
 func Markdown(r Report) string {
 	var b strings.Builder
 	s := r.Diff.Summary
-	fmt.Fprintf(&b, "<!-- impactr-comment:v1 -->\n## Impactr architecture impact\n\n**+%d / −%d / ~%d nodes** · **+%d / −%d relationships** · **%d potentially affected**\n\n%s\n\n![Impact graph](impact.png)\n\n<details><summary>Evidence-backed findings</summary>\n\n", s.NodesAdded, s.NodesRemoved, s.NodesModified, s.EdgesAdded, s.EdgesRemoved, len(r.Impact.Affected), r.Explanation.Summary)
+	fmt.Fprintf(&b, "<!-- impactr-comment:v1 -->\n<!-- impactr-stats:v1 nodes=%d edges=%d affected=%d head=%s -->\n## Impactr architecture impact\n\n**+%d / −%d / ~%d nodes** · **+%d / −%d relationships** · **%d potentially affected**\n\n%s\n\n![Impact graph](impact.png)\n\n<details><summary>Evidence-backed findings</summary>\n\n",
+		s.NodesAdded+s.NodesRemoved+s.NodesModified, s.EdgesAdded+s.EdgesRemoved, len(r.Impact.Affected), r.After.Provenance.HeadSHA,
+		s.NodesAdded, s.NodesRemoved, s.NodesModified, s.EdgesAdded, s.EdgesRemoved, len(r.Impact.Affected), r.Explanation.Summary)
 	for _, c := range r.Explanation.Claims {
 		fmt.Fprintf(&b, "- %s (`%s`)\n", c.Text, c.Classification)
 	}
