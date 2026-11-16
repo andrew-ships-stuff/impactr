@@ -201,6 +201,7 @@ func githubCmd(f *flags) *cobra.Command {
 	c.Flags().IntVar(&pr, "pr", envInt("GITHUB_PR_NUMBER"), "pull request number")
 	c.Flags().StringVar(&repo, "repo", os.Getenv("GITHUB_REPOSITORY"), "owner/repository")
 	c.Flags().BoolVar(&existing, "existing", false, "publish already-generated, validated artifacts")
+	c.Flags().StringVar(&f.output, "output", "", "artifact directory (default .impactr)")
 	g.AddCommand(c)
 	return g
 }
@@ -226,6 +227,7 @@ func gitlabCmd(f *flags) *cobra.Command {
 	c.Flags().IntVar(&mr, "mr", envInt("CI_MERGE_REQUEST_IID"), "merge request IID")
 	c.Flags().StringVar(&project, "project", os.Getenv("CI_PROJECT_ID"), "project ID or path")
 	c.Flags().StringVar(&baseURL, "url", os.Getenv("CI_SERVER_URL"), "GitLab base URL")
+	c.Flags().StringVar(&f.output, "output", "", "artifact directory (default .impactr)")
 	g.AddCommand(c)
 	return g
 }
