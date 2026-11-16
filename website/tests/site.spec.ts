@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 test('homepage explains the product and graph tabs work', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: /See the impact before you merge/i })).toBeVisible();
-  await expect(page.getByText('brew install andrew-ships-stuff/tap/impactr').first()).toBeVisible();
+  await expect(page.getByText('go install github.com/andrew-ships-stuff/impactr/cmd/impactr@latest').first()).toBeVisible();
   const impactTab = page.getByRole('tab', { name: 'Impact radius' });
   await impactTab.click();
   await expect(impactTab).toHaveAttribute('aria-selected', 'true');

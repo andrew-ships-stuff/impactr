@@ -28,7 +28,7 @@ Node IDs hash language, canonical package, qualified symbol, and kind — not li
 
 ## Rendering and inference
 
-The renderer uses an ID-derived deterministic grid so unchanged identities tend to retain positions. Large visual views are capped while machine-readable graph data remains complete. Inference receives a compact evidence projection and cannot replace the graph.
+The renderer uses deterministic dependency layers, stable ordering, and left-to-right arrows. Its top-level view rolls symbols up to local packages and limits each package to its strongest outgoing relationships; focused diagrams retain symbol-level paths. Large visual views are capped while machine-readable graph data remains complete. Inference receives a compact evidence projection and cannot replace the graph.
 
 ## Schema compatibility
 

@@ -41,6 +41,8 @@ render:
 
 Unknown fields and unsupported schema versions are rejected. No configuration field executes commands.
 
+> In the current engine, `render.max_nodes` is enforced. The `views`, `formats`, and `theme` keys are accepted schema fields reserved for fuller configuration-driven rendering; use CLI render flags and generated artifacts for current behavior.
+
 ## Environment variables
 
 Implemented keys are `IMPACTR_PROVIDER`, `IMPACTR_MODEL`, `IMPACTR_ENDPOINT`, `IMPACTR_API_KEY`, and `IMPACTR_MODEL_CACHE`. Credentials are read from the environment and are never logged.

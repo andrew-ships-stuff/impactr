@@ -20,13 +20,16 @@ The `.impactr/` directory includes:
 - `analysis.json` and `report.json` — complete versioned report envelopes.
 - `graph-before.json` and `graph-after.json` — canonical snapshots.
 - `graph-diff.json` — classified node and edge changes.
-- `impact.svg` and `impact.png` — reviewable overview diagrams.
+- `architecture.svg` and `architecture.png` — package-rollup architecture overview.
+- `impact.svg`, `impact.png`, and `impact.mmd` — reviewable impact overview and Mermaid source.
 - `summary.md` — code-review summary with versioned markers.
-- Mermaid and additional cluster images produced by the current renderer.
+- Up to four focused package-flow SVG/PNG pairs that retain symbol-level paths.
 
 ## Evidence identities
 
 Resolved facts carry source evidence. Node and edge identities are stable across line movement because line numbers are not part of the ID hash. Unresolved dynamic syntax remains explicitly unresolved rather than guessed.
+
+The report also carries deterministic package `rollup` data and an optional validated `brief`. Review summaries separate direct and transitive potential dependents and place focused flows in a collapsible section.
 
 ## Schema contract
 

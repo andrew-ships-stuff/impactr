@@ -7,13 +7,9 @@ description: Read architecture, diff, and impact views correctly.
 
 Impactr renders three related views from the same canonical graph data.
 
-## Architecture
+## Architecture snapshots
 
-The architecture view shows a snapshot of the system at one revision. Use it to orient yourself before interpreting change semantics.
-
-```bash
-impactr analyze --view architecture
-```
+Before and after snapshots are available in `graph-before.json` and `graph-after.json`. The current terminal `--view architecture` path does not yet render a distinct single-revision terminal view; use the JSON artifacts when exact snapshot semantics matter.
 
 ## Diff
 
@@ -37,4 +33,4 @@ Impactr intentionally does not assign invented failure probabilities. Reachabili
 
 ## Large graphs
 
-Render limits keep diagrams reviewable. The complete versioned JSON graph remains available even when the visual view is capped.
+The top-level renderer rolls changed symbols into local packages, uses deterministic dependency layers, and limits outgoing relationships to keep the review diagram readable. Focused package flows retain symbol-level paths. The complete versioned JSON graph remains available even when visual views are capped.

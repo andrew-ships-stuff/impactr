@@ -12,10 +12,12 @@ Use this documentation to get from installation to a local analysis, then connec
 ## Start with a local analysis
 
 ```bash
-brew install andrew-ships-stuff/tap/impactr
+go install github.com/andrew-ships-stuff/impactr/cmd/impactr@latest
 cd your-repository
 impactr analyze --no-ai
 ```
+
+The Homebrew formula is not published yet. The site will switch the primary command after the first release is available in the tap.
 
 The command compares your branch against the merge base of the discovered default branch. Artifacts are written to `.impactr/`.
 
