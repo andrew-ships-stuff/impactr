@@ -4,7 +4,7 @@ The official Impactr website is an Astro static site built for GitHub Pages. Pro
 
 ## Develop locally
 
-Requirements: Node.js 20 or newer and npm.
+Requirements: Node.js 22.23.4 or newer and npm. The Pages workflow pins Node.js 22.23.4 to meet Astro 7's minimum version.
 
 ```bash
 cd website
