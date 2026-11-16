@@ -163,10 +163,23 @@ func Mermaid(w io.Writer, d graph.Diff, max int) error {
 func Terminal(w io.Writer, r Report) error {
 	s := r.Diff.Summary
 	fmt.Fprintf(w, "Impactr — %s comparison\n\nNodes: +%d -%d ~%d   Relationships: +%d -%d   Potentially affected: %d\n", r.After.Provenance.Comparison, s.NodesAdded, s.NodesRemoved, s.NodesModified, s.EdgesAdded, s.EdgesRemoved, len(r.Impact.Affected))
+	shown, total := 0, 0
 	for _, n := range r.Diff.Nodes {
 		if n.Change != graph.Unchanged {
-			fmt.Fprintf(w, "  %-8s %-12s %s (%s:%d)\n", n.Change, n.Kind, n.QualifiedName, n.Location.Path, n.Location.StartLine)
+			total++
 		}
+	}
+	for _, n := range r.Diff.Nodes {
+		if n.Change != graph.Unchanged {
+			if shown >= 30 {
+				continue
+			}
+			fmt.Fprintf(w, "  %-8s %-12s %s (%s:%d)\n", n.Change, n.Kind, n.QualifiedName, n.Location.Path, n.Location.StartLine)
+			shown++
+		}
+	}
+	if total > shown {
+		fmt.Fprintf(w, "  … %d more changed nodes; see .impactr/analysis.json\n", total-shown)
 	}
 	fmt.Fprintln(w, "\n"+r.Explanation.Summary)
 	for _, wrg := range r.After.Warnings {

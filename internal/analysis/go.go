@@ -188,6 +188,12 @@ func (GoAnalyzer) Analyze(ctx context.Context, root string, files []string) ([]g
 			var q string
 			switch fun := call.Fun.(type) {
 			case *ast.Ident:
+				if fun.Obj != nil && fun.Obj.Kind == ast.Var {
+					return true
+				}
+				if goBuiltin(fun.Name) {
+					return true
+				}
 				q = pf.pkg + "." + fun.Name
 			case *ast.SelectorExpr:
 				if id, ok := fun.X.(*ast.Ident); ok {
@@ -236,6 +242,13 @@ func (GoAnalyzer) Analyze(ctx context.Context, root string, files []string) ([]g
 	edges = dedupeEdges(edges)
 	sort.Slice(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
 	return nodes, edges, nil, nil
+}
+func goBuiltin(name string) bool {
+	switch name {
+	case "append", "cap", "clear", "close", "complex", "copy", "delete", "imag", "len", "make", "max", "min", "new", "panic", "print", "println", "real", "recover", "string", "bool", "byte", "rune", "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "uintptr", "float32", "float64", "complex64", "complex128", "error", "any":
+		return true
+	}
+	return false
 }
 func modulePath(root string) string {
 	b, e := os.ReadFile(filepath.Join(root, "go.mod"))
