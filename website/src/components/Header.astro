@@ -1,0 +1,61 @@
+---
+import { GitPullRequest, Menu, Moon, Sun, X } from '@lucide/astro';
+import Logo from './Logo.astro';
+import { url } from '../lib/site';
+const path = Astro.url.pathname;
+const links = [
+  ['Overview', '/#overview'], ['How it works', '/#how-it-works'], ['Features', '/#features'], ['Documentation', '/docs/']
+];
+---
+<header class="site-header">
+  <div class="site-shell nav-wrap">
+    <Logo />
+    <nav class="desktop-nav" aria-label="Primary navigation">
+      {links.map(([label, href]) => <a class={path.includes('/docs') && href.includes('/docs') ? 'active' : ''} href={url(href)}>{label}</a>)}
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-button theme-toggle" aria-label="Switch color theme" title="Switch color theme"><Sun class="sun" size={18}/><Moon class="moon" size={18}/></button>
+      <a class="github-link" href="https://github.com/andrew-ships-stuff/impactr" target="_blank" rel="noreferrer" aria-label="View Impactr on GitHub"><GitPullRequest size={17}/><span>GitHub</span></a>
+      <button class="icon-button menu-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="mobile-nav"><Menu class="menu-icon" size={21}/><X class="close-icon" size={21}/></button>
+    </div>
+  </div>
+  <nav id="mobile-nav" class="mobile-nav" aria-label="Mobile navigation" hidden>
+    {links.map(([label, href]) => <a href={url(href)}>{label}</a>)}
+    <a href={url('/examples/')}>Examples</a><a href={url('/integrations/')}>Integrations</a><a href={url('/security/')}>Security</a>
+  </nav>
+</header>
+<script is:inline>
+  (() => {
+    const root = document.documentElement;
+    const saved = localStorage.getItem('impactr-theme');
+    const initial = saved || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    root.dataset.theme = initial;
+    document.querySelectorAll('.theme-toggle').forEach((button) => button.addEventListener('click', () => {
+      const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next; localStorage.setItem('impactr-theme', next);
+    }));
+    const toggle = document.querySelector('.menu-toggle');
+    const nav = document.querySelector('#mobile-nav');
+    toggle?.addEventListener('click', () => {
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      if (nav) nav.hidden = !open;
+    });
+  })();
+</script>
+<style>
+  .site-header { position: sticky; inset-block-start: 0; z-index: 50; border-bottom: 1px solid color-mix(in srgb, var(--line) 80%, transparent); background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(16px); }
+  .nav-wrap { min-height: 70px; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+  .desktop-nav { display: flex; align-items: center; gap: clamp(1rem, 2.5vw, 2rem); }
+  .desktop-nav a { color: var(--muted); font-size: .86rem; font-weight: 600; text-decoration: none; }
+  .desktop-nav a:hover, .desktop-nav a.active { color: var(--text); }
+  .nav-actions { display: flex; align-items: center; gap: .55rem; }
+  .icon-button { width: 40px; height: 40px; display: grid; place-items: center; border: 1px solid var(--line); background: var(--surface); color: var(--text); cursor: pointer; }
+  .github-link { min-height: 40px; display: inline-flex; align-items: center; gap: .45rem; padding: 0 .8rem; border: 1px solid var(--line); text-decoration: none; font-size: .8rem; font-weight: 650; }
+  .github-link:hover, .icon-button:hover { border-color: var(--accent); }
+  .theme-toggle .sun { display: none; } [data-theme="dark"] .theme-toggle .sun { display: block; } [data-theme="dark"] .theme-toggle .moon { display: none; }
+  .menu-toggle { display: none; } .close-icon { display: none; } .menu-toggle[aria-expanded="true"] .menu-icon { display: none; } .menu-toggle[aria-expanded="true"] .close-icon { display: block; }
+  .mobile-nav { border-top: 1px solid var(--line); padding: .5rem 1rem 1rem; background: var(--bg); }
+  .mobile-nav a { display: block; padding: .85rem; border-bottom: 1px solid var(--line); text-decoration: none; font-weight: 600; }
+  @media (max-width: 800px) { .desktop-nav { display: none; } .menu-toggle { display: grid; } .github-link span { display: none; } .github-link { width: 40px; padding: 0; justify-content: center; } }
+</style>

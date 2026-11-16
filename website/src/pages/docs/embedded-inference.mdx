@@ -1,0 +1,35 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Embedded inference
+description: Use Impactr's optional CPU-only embedded model safely.
+---
+# Embedded inference
+
+The default provider uses `github.com/goccy/go-llama`, a pure-Go, static-binary llama.cpp derivative. It avoids CGo and a separate inference server.
+
+## Install explicitly
+
+```bash
+impactr model install
+impactr analyze
+```
+
+The current default is Qwen2.5-0.5B-Instruct Q4_0 (Apache-2.0, approximately 409 MiB). The model registry pins SHA-256 `7671c0c304e6ce5a7fc577bcb12aba01e2c155cc2efd29b2213c95b18edaf6ed`.
+
+## What the model receives
+
+Impactr sends compact changed nodes, changed edges, and bounded affected-node IDs. It does not send full source. Every generated claim must cite an existing node or edge ID; unsupported claims are removed.
+
+## Failure behavior
+
+Inference failure alone is not fatal. The report records a deterministic fallback and analysis still produces graphs and artifacts.
+
+## Disable inference
+
+```bash
+impactr analyze --no-ai
+# or
+IMPACTR_PROVIDER=none impactr analyze
+```
+
+CPU inference should not be assumed to match GPU throughput. Configure threads, memory, timeout, context length, and output limits for the machine and workflow you control.

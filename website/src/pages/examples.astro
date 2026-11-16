@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import GraphExplorer from '../components/GraphExplorer.astro';
+import CopyCode from '../components/CopyCode.astro';
+import { Eye, GitCompareArrows, Radar } from '@lucide/astro';
+---
+<BaseLayout title="Interactive Architecture Examples — Impactr" description="Explore Impactr architecture, diff, and impact-radius graph semantics using deterministic fixtures.">
+  <section class="page-hero section"><div class="site-shell"><p class="eyebrow">Interactive examples</p><h1 class="display">Read the graph,<br/>not the tea leaves.</h1><p class="lede">These fixtures demonstrate the semantics of Impactr output. They run entirely in the browser and do not analyze a repository.</p></div></section>
+  <section class="section"><div class="site-shell"><GraphExplorer /></div></section>
+  <section class="section guide"><div class="site-shell"><div class="cards"><article><Eye/><h2>Architecture</h2><p>Use a snapshot to understand components and relationships at one Git state. Stable identities make before and after comparable.</p></article><article><GitCompareArrows/><h2>Diff</h2><p>Focus on confirmed additions, removals, and modifications. Source evidence anchors each resolved fact.</p></article><article><Radar/><h2>Impact radius</h2><p>Follow bounded reverse dependencies to find potential downstream review targets. Reachability is not a failure prediction.</p></article></div><div class="try panel"><div><p class="eyebrow">Try it in a repository</p><h2>Generate the real graph locally.</h2></div><div><CopyCode code="impactr analyze --no-ai --view diff"/><CopyCode code="impactr analyze --view impact"/></div></div></div></section>
+</BaseLayout>
+<style>
+  .page-hero{border-bottom:1px solid var(--line);background:var(--bg-soft)}.page-hero .lede{max-width:720px}.cards{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line)}.cards article{padding:2rem;border-right:1px solid var(--line)}.cards article:last-child{border:0}.cards svg{color:var(--accent)}.cards h2{font-size:1.3rem}.cards p{color:var(--muted);line-height:1.65}.guide{background:var(--bg-soft);border-top:1px solid var(--line)}.try{margin-top:3rem;padding:2rem;display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}.try h2{font-size:2rem;margin:.5rem 0}.try>div:last-child{display:grid;gap:.7rem}@media(max-width:700px){.cards,.try{grid-template-columns:1fr}.cards article{border-right:0;border-bottom:1px solid var(--line)}}
+</style>

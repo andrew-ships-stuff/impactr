@@ -47,14 +47,13 @@ The blast radius walks reverse dependencies with a configurable depth and node b
 
 ## Automation
 
-The repository is a reusable composite Action:
+The repository is a reusable composite Action. Keep the analysis job read-only, including for fork PRs:
 
 ```yaml
 name: Impactr
 on: [pull_request]
 permissions:
-  contents: write # needed only to upload the attached impact.png
-  pull-requests: write
+  contents: read
 jobs:
   impactr:
     runs-on: ubuntu-latest
@@ -62,9 +61,11 @@ jobs:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
       - uses: andrew-ships-stuff/impactr@v1
+        with:
+          comment: "false"
 ```
 
-Fork PRs receive a read-only token, so the Action analyzes and uploads artifacts but deliberately skips commenting. See [GitHub automation](docs/github-action.md) for the secure two-stage publisher and [GitLab CI](docs/gitlab-ci.md) for merge-request notes.
+The default `embedded` provider downloads the disclosed, checksum-pinned Apache-2.0 model automatically in CI and caches it; there is no click-through license to accept. Use `provider: none` for a faster deterministic-only run. Comment publishing uses the separate default-branch `workflow_run` design documented in [GitHub automation](docs/github-action.md), so untrusted PR code never runs with a write token. See [GitLab CI](docs/gitlab-ci.md) for merge-request notes.
 
 ## Documentation
 

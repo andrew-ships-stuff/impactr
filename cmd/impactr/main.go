@@ -82,6 +82,7 @@ func analyze(ctx context.Context, f flags) error {
 	opts := app.Options{Base: base, Head: f.head, Mode: mode, NoAI: f.noAI, Provider: f.provider, Model: f.model, OutputDir: f.output, Version: version}
 	if f.format == "terminal" {
 		opts.Progress = newTerminalReporter()
+		defer opts.Progress.Close()
 	}
 	rep, e := app.Run(ctx, cwd, c, opts)
 	if e != nil {
@@ -252,8 +253,12 @@ func artifactFiles(out string) []string {
 }
 func fileExists(p string) bool { _, e := os.Stat(p); return e == nil }
 func validateCmd() *cobra.Command {
-	var dir string
-	c := &cobra.Command{Use: "validate-artifact", Short: "Validate an untrusted artifact bundle", RunE: func(cmd *cobra.Command, args []string) error { return artifact.Validate(dir) }}
+	var dir, base, head string
+	c := &cobra.Command{Use: "validate-artifact", Short: "Validate an untrusted artifact bundle", RunE: func(cmd *cobra.Command, args []string) error {
+		return artifact.ValidateExpected(dir, artifact.Expectations{BaseSHA: base, HeadSHA: head})
+	}}
 	c.Flags().StringVar(&dir, "dir", ".impactr", "artifact directory")
+	c.Flags().StringVar(&base, "base", "", "expected base commit SHA")
+	c.Flags().StringVar(&head, "head", "", "expected head commit SHA")
 	return c
 }

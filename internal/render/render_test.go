@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/andrew-ships-stuff/impactr/internal/graph"
 	"github.com/andrew-ships-stuff/impactr/internal/inference"
+	"image/png"
 	"regexp"
 	"strconv"
 	"strings"
@@ -16,7 +17,7 @@ func TestSVGDeterministic(t *testing.T) {
 	var a, b bytes.Buffer
 	_ = SVG(&a, d, 10, false)
 	_ = SVG(&b, d, 10, false)
-	if a.String() != b.String() || !strings.Contains(a.String(), "Legend") {
+	if a.String() != b.String() || !strings.Contains(a.String(), "STATUS") {
 		t.Fatal("non-deterministic or missing legend")
 	}
 }
@@ -98,9 +99,37 @@ func TestMarkdownBriefRollupAndImages(t *testing.T) {
 	}
 	r.After.Provenance.HeadSHA = "abc1234"
 	md := Markdown(r)
-	for _, want := range []string{"session gains validation", "`session` — +2/−0/~0 changed, 1 potentially affected — validation data flow", "![validation data flow](impact-1.png)", "impactr-stats:v1 nodes=3 edges=3 affected=1"} {
+	for _, want := range []string{"session gains validation", "`session`** — 2 symbols changed", "1 downstream symbol may rely on them", "![validation data flow](impact-1.png)", "impactr-stats:v1 nodes=3 edges=3 affected=1"} {
 		if !strings.Contains(md, want) {
 			t.Fatalf("missing %q in:\n%s", want, md)
 		}
+	}
+}
+
+func TestLayoutReadsFromLeftToRight(t *testing.T) {
+	d := graph.Diff{
+		Nodes: []graph.Node{{ID: "caller"}, {ID: "dependency"}},
+		Edges: []graph.Edge{{From: "caller", To: "dependency"}},
+	}
+	pl := layout(d, 10)
+	if pl.pos["caller"].x >= pl.pos["dependency"].x {
+		t.Fatalf("caller should be left of dependency: %#v", pl.pos)
+	}
+}
+
+func TestPNGCardInteriorIsNotOverpainted(t *testing.T) {
+	d := graph.Diff{Nodes: []graph.Node{{ID: "a", Name: "A", Kind: "package", Change: graph.Added, Resolution: graph.Resolved}}}
+	var buf bytes.Buffer
+	if err := PNG(&buf, d, 10); err != nil {
+		t.Fatal(err)
+	}
+	im, err := png.Decode(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := layout(d, 10).pos["a"]
+	r, g, b, _ := im.At(p.x+nodeW/2, p.y+nodeH/2).RGBA()
+	if r < 0xf000 || g < 0xf000 || b < 0xf000 {
+		t.Fatalf("card interior should remain light, got %04x %04x %04x", r, g, b)
 	}
 }

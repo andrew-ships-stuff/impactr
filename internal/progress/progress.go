@@ -17,11 +17,28 @@ type Event struct {
 }
 
 type Reporter struct {
-	mu   sync.Mutex
-	sink func(Event)
+	mu        sync.Mutex
+	sink      func(Event)
+	closeOnce sync.Once
+	closeFn   func()
 }
 
 func New(sink func(Event)) *Reporter { return &Reporter{sink: sink} }
+
+func NewWithClose(sink func(Event), closeFn func()) *Reporter {
+	return &Reporter{sink: sink, closeFn: closeFn}
+}
+
+func (r *Reporter) Close() {
+	if r == nil {
+		return
+	}
+	r.closeOnce.Do(func() {
+		if r.closeFn != nil {
+			r.closeFn()
+		}
+	})
+}
 
 func (r *Reporter) Emit(e Event) {
 	if r == nil || r.sink == nil {

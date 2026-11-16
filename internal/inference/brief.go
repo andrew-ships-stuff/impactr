@@ -36,6 +36,13 @@ type Briefer interface {
 	Brief(context.Context, BriefRequest) (Brief, error)
 }
 
+// Narrator can produce both AI-authored outputs while sharing expensive
+// provider state such as an embedded model load. Providers that do not
+// implement it continue to use Explain and Brief independently.
+type Narrator interface {
+	Narrate(context.Context, Request, BriefRequest) (Explanation, Brief, error)
+}
+
 func BriefFacts(req BriefRequest) []byte {
 	type pkgFact struct {
 		Package  string `json:"package"`
@@ -90,29 +97,64 @@ func ValidateBrief(b Brief, req BriefRequest) (Brief, error) {
 		}
 	}
 	b.Clusters = out
-	if strings.TrimSpace(b.Headline) == "" {
+	headline := strings.TrimSpace(b.Headline)
+	if headline == "" {
 		return b, fmt.Errorf("empty brief headline")
+	}
+	if len(headline) > 240 || strings.Count(headline, ",") > 6 {
+		return b, fmt.Errorf("brief headline is not concise")
+	}
+	nonASCII := 0
+	for _, r := range headline {
+		if r > 127 {
+			nonASCII++
+		}
+	}
+	if nonASCII > len([]rune(headline))/10 {
+		return b, fmt.Errorf("brief headline is not in the requested language")
+	}
+	grounded := len(known) == 0
+	for p := range known {
+		base := p
+		if i := strings.LastIndexByte(base, '/'); i >= 0 {
+			base = base[i+1:]
+		}
+		if strings.Contains(headline, p) || (base != "" && strings.Contains(headline, base)) {
+			grounded = true
+			break
+		}
+	}
+	if !grounded {
+		return b, fmt.Errorf("brief headline does not name an analyzed package")
 	}
 	return b, nil
 }
 
-func DeterministicBrief(req BriefRequest, reason string) Brief {
-	changed, affected, top := 0, 0, ""
-	if len(req.Views) > 0 {
-		v := req.Views[0]
-		top = fmt.Sprintf(" Largest blast radius is %s (%d changed, %d potentially affected).", v.Package, v.Added+v.Removed+v.Modified, v.Affected)
-	}
+func DeterministicBrief(req BriefRequest, _ string) Brief {
+	changed, affected, packages, top := 0, 0, 0, ""
+	var largest *graph.PackageView
 	for _, v := range req.Views {
-		changed += v.Added + v.Removed + v.Modified
+		if v.External {
+			continue
+		}
+		localChanged := v.Added + v.Removed + v.Modified
+		changed += localChanged
 		affected += v.Affected
+		if localChanged > 0 {
+			packages++
+		}
+		if largest == nil || v.Affected > largest.Affected || (v.Affected == largest.Affected && localChanged > largest.Added+largest.Removed+largest.Modified) {
+			copy := v
+			largest = &copy
+		}
+	}
+	if largest != nil && largest.Affected > 0 {
+		top = fmt.Sprintf(" Review %s first: %d downstream symbols may depend on its changes.", largest.Package, largest.Affected)
 	}
 	b := Brief{
-		Headline: fmt.Sprintf("%d symbols changed across %d packages; %d symbols are potentially affected.%s", changed, len(req.Views), affected, top),
+		Headline: fmt.Sprintf("%d symbols changed across %d local packages; %d downstream symbols may be affected.%s", changed, packages, affected, top),
 		Provider: "deterministic",
 		Fallback: true,
-	}
-	if reason != "" {
-		b.Headline += " AI summary unavailable: " + reason
 	}
 	for _, c := range req.Clusters {
 		changed, affected := 0, 0

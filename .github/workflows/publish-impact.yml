@@ -1,0 +1,54 @@
+name: Publish Impactr comment
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+concurrency:
+  group: impactr-publish-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  cancel-in-progress: true
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.pull_requests[0].number != null
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with: {go-version-file: go.mod}
+      - run: go build -trimpath -o "$RUNNER_TEMP/impactr" ./cmd/impactr
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: impactr-${{ github.event.workflow_run.pull_requests[0].number }}-${{ github.event.workflow_run.head_sha }}
+          path: ${{ runner.temp }}/impactr-artifacts
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Bind and validate untrusted artifacts
+        shell: bash
+        run: |
+          expected_head="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)"
+          base_tip="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .base.sha)"
+          expected_base="$(gh api "repos/$GITHUB_REPOSITORY/compare/$base_tip...$expected_head" --jq .merge_base_commit.sha)"
+          test "$expected_head" = "$RUN_HEAD_SHA"
+          "$RUNNER_TEMP/impactr" validate-artifact \
+            --dir "$RUNNER_TEMP/impactr-artifacts" \
+            --base "$expected_base" \
+            --head "$expected_head"
+      - name: Publish validated report
+        run: >-
+          "$RUNNER_TEMP/impactr" github comment --existing
+          --pr "$PR_NUMBER"
+          --repo "$GITHUB_REPOSITORY"
+          --output "$RUNNER_TEMP/impactr-artifacts"

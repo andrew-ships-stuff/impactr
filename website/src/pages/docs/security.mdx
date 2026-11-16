@@ -1,0 +1,26 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Security
+description: Understand Impactr's local data boundary and CI trust model.
+---
+# Security
+
+Impactr is local-first, but the boundary changes when you configure an external provider or a privileged CI publisher.
+
+## Local analysis
+
+Git snapshots are extracted into isolated temporary locations. Model weights are installed only through an explicit command and verified before caching. Credentials are environment-only and are not logged.
+
+## Inference boundary
+
+Embedded inference keeps structured facts on the machine. External providers receive compact names, paths, signatures, evidence summaries, and graph relationships; their policies apply. Full source is not part of the implemented request.
+
+## CI boundaries
+
+Fork code must never execute with write tokens or protected secrets. Analyze in the unprivileged PR context, transfer a validated artifact, verify external identity through the forge API, and publish from trusted default-branch code.
+
+## Artifact limits
+
+`validate-artifact` applies bundle, JSON, schema, PNG-dimension, and marker checks. It is one part of the boundary; archive extraction must also reject traversal and symlinks before validation.
+
+For vulnerability reporting, use the private process in the repository's `SECURITY.md` rather than a public issue.

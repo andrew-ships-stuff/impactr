@@ -1,0 +1,18 @@
+---
+const { code, label = 'Copy command' } = Astro.props;
+---
+<div class="copy-shell">
+  <code tabindex="0" aria-label={code}>{code}</code>
+  <button class="copy-button" type="button" data-copy={code} aria-label={label}>Copy</button>
+</div>
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-copy]').forEach((button) => {
+    if (button.dataset.bound) return;
+    button.dataset.bound = 'true';
+    button.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(button.dataset.copy ?? '');
+      button.textContent = 'Copied';
+      window.setTimeout(() => button.textContent = 'Copy', 1400);
+    });
+  });
+</script>

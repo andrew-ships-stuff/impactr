@@ -1,0 +1,54 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: CLI reference
+description: Current Impactr commands and implemented flags.
+---
+# CLI reference
+
+The commands below reflect the current Cobra implementation. Run `impactr help` or `impactr <command> --help` for the generated reference installed with your binary.
+
+## Analyze
+
+```text
+impactr analyze [flags]
+  --base string          base branch or commit
+  --head string          head branch or commit (default "HEAD")
+  --working-tree         compare HEAD with the working tree
+  --staged               compare HEAD with the index
+  --no-ai                disable inference
+  --provider string      embedded, none, ollama, llama-server, or openai-compatible
+  --model string         model name
+  --format string        terminal or json (default "terminal")
+  --output string        artifact directory (default .impactr)
+  --view string          architecture, diff, or impact (default "diff")
+```
+
+`--working-tree` and `--staged` are mutually exclusive. Untracked-file inclusion is reserved for a later release and is not currently enabled.
+
+## Render
+
+```bash
+impactr render --input .impactr/analysis.json --format svg --theme dark
+```
+
+Implemented formats are `svg`, `png`, `mermaid`, and `markdown`. Themes are `light` and `dark`.
+
+## Models and hooks
+
+```bash
+impactr model install
+impactr hook install --type pre-commit
+impactr hook install --type pre-push --blocking
+impactr hook uninstall --type pre-push
+```
+
+## Integrations and artifact validation
+
+```bash
+impactr github comment --pr 123 --repo owner/repo
+impactr github comment --existing --pr 123 --repo owner/repo --output .impactr
+impactr gitlab comment --mr 42 --project group/project --output .impactr
+impactr validate-artifact --dir .impactr
+```
+
+`github comment --existing` validates the bundle before publishing. `gitlab comment` currently analyzes and then publishes.

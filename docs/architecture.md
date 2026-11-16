@@ -14,7 +14,7 @@ Git snapshots -> language analyzers -> canonical graph -> graph diff -> blast ra
 
 `internal/graph` is the source of truth. Node IDs hash language, canonical package, qualified symbol, and kind—not line numbers. Edge IDs hash endpoints and relationship kind. Function body hashes classify implementation changes independently from relationships. Every resolved fact has source evidence; unresolved syntax stays explicitly unresolved.
 
-The renderer uses an ID-derived deterministic grid so unchanged identities tend to retain positions. SVG is first-class; PNG uses a native Go rasterizer. Large graphs are capped, while the machine-readable graph remains complete.
+The renderer uses deterministic dependency layers with stable ordering and left-to-right arrows. The top-level view rolls symbols up to local packages, keeps external-import changes in the written report, and limits each package to its two strongest outgoing relationships so a broad change does not become an unreadable hairball. Focused diagrams retain symbol-level paths. SVG is first-class; PNG uses a native Go rasterizer and an embedded open font. Large graphs are capped, while the machine-readable graph remains complete.
 
 Inference receives compact changed facts and impact IDs, not repository files. Claims without valid graph evidence IDs are discarded. Provider failure yields a deterministic summary.
 

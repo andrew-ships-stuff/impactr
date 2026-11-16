@@ -1,0 +1,22 @@
+---
+import Logo from './Logo.astro';
+import { url } from '../lib/site';
+---
+<footer>
+  <div class="site-shell footer-grid">
+    <div><Logo/><p>Evidence-backed architecture impact analysis.<br/>Built in Go. Local by default.</p></div>
+    <div><h2>Explore</h2><a href={url('/examples/')}>Examples</a><a href={url('/integrations/')}>Integrations</a><a href={url('/architecture/')}>Architecture</a></div>
+    <div><h2>Resources</h2><a href={url('/docs/')}>Documentation</a><a href={url('/security/')}>Security</a><a href="https://github.com/andrew-ships-stuff/impactr">GitHub</a></div>
+  </div>
+  <div class="site-shell bottom"><span>Impactr is open source under the MIT License.</span><span class="mono">See the impact before you merge.</span></div>
+</footer>
+<style>
+  footer { border-top: 1px solid var(--line); padding: 4rem 0 2rem; background: var(--bg-soft); }
+  .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 3rem; }
+  p { color: var(--muted); line-height: 1.7; }
+  h2 { margin: 0 0 1rem; font: 700 .72rem var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .footer-grid a { display: block; margin: .7rem 0; text-decoration: none; font-size: .92rem; }
+  .footer-grid a:hover { color: var(--accent); }
+  .bottom { display: flex; justify-content: space-between; gap: 1rem; margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .78rem; }
+  @media (max-width: 680px) { .footer-grid { grid-template-columns: 1fr 1fr; } .footer-grid > :first-child { grid-column: 1 / -1; } .bottom { flex-direction: column; } }
+</style>

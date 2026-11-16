@@ -1,0 +1,9 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { ArrowLeft } from '@lucide/astro';
+import { url } from '../lib/site';
+---
+<BaseLayout title="Page not found — Impactr" noindex={true}>
+  <section class="not-found section"><div class="grid-bg"></div><div class="site-shell"><p class="code">404 / unresolved node</p><h1 class="display">This path has no<br/>source evidence.</h1><p class="lede">The page may have moved, or the relationship never existed.</p><a class="btn btn-primary" href={url('/')}><ArrowLeft size={17}/> Return to Impactr</a></div></section>
+</BaseLayout>
+<style>.not-found{position:relative;min-height:70vh;display:grid;align-items:center;overflow:hidden}.grid-bg{position:absolute;inset:0}.site-shell{position:relative}.code{color:var(--removed);font:700 .75rem var(--font-mono);text-transform:uppercase;letter-spacing:.1em}.lede{margin:1.5rem 0 2rem}</style>

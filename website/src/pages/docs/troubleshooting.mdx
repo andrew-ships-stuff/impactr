@@ -1,0 +1,42 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Troubleshooting
+description: Resolve common Git history, model, provider, and CI publishing issues.
+---
+# Troubleshooting
+
+## Default branch or merge base cannot be resolved
+
+Impactr needs the relevant Git history. In CI, use a full checkout:
+
+```yaml
+- uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+```
+
+Confirm `origin/HEAD`, `origin/main`, or `origin/master` exists, or pass `--base` explicitly.
+
+## Embedded model is unavailable
+
+Impactr never downloads a model during analysis. Install and verify it explicitly:
+
+```bash
+impactr model install
+```
+
+If inference is not required, run `impactr analyze --no-ai`. Provider failure produces a deterministic fallback rather than invalidating the graph.
+
+## External provider cannot connect
+
+Check `IMPACTR_PROVIDER`, `IMPACTR_ENDPOINT`, and `IMPACTR_MODEL`. Ollama defaults to `127.0.0.1:11434`; llama-server and OpenAI-compatible providers default to `127.0.0.1:8080` when no endpoint is configured.
+
+## Pull request comment is missing
+
+Fork PR tokens are intentionally read-only. Check the uploaded artifact and job summary. Use the documented trusted `workflow_run` publisher for fork comments.
+
+For same-repository publishing, `pull-requests: write` is required. The current diagram fallback also needs `contents: write` for the dedicated asset branch.
+
+## Graph is smaller than the JSON
+
+Visual render limits cap large diagrams for readability. The versioned JSON graph remains complete.

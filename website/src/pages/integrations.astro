@@ -1,0 +1,27 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CopyCode from '../components/CopyCode.astro';
+import { url } from '../lib/site';
+import { GitPullRequest, GitMerge, GitCommitHorizontal, ShieldCheck, ArrowRight } from '@lucide/astro';
+---
+<BaseLayout title="GitHub, GitLab & Git Hook Integrations — Impactr" description="Run the same deterministic Impactr engine locally, in GitHub Actions, and in GitLab merge request pipelines.">
+  <section class="page-hero section"><div class="site-shell"><p class="eyebrow">One engine, three review moments</p><h1 class="display">Architecture context<br/>where decisions happen.</h1><p class="lede">Analyze before push, publish into a pull request, or update a GitLab merge request note. Every integration consumes the same versioned facts.</p></div></section>
+  <section class="section"><div class="site-shell integration-list">
+    <article><div class="icon"><GitCommitHorizontal/></div><div><p class="eyebrow">Local Git hooks</p><h2>Before the change leaves your machine.</h2><p>Pre-commit analyzes the index. Pre-push uses the configured branch comparison. Existing hooks are chained and restored safely; model downloads never happen inside a hook.</p><CopyCode code="impactr hook install --type pre-push"/><a href={url('/docs/git-hooks/')}>Git hooks guide <ArrowRight size={15}/></a></div><div class="flow"><span>Edit</span><i>→</i><span class="hot">Impactr</span><i>→</i><span>Push</span></div></article>
+    <article><div class="icon"><GitPullRequest/></div><div><p class="eyebrow">GitHub Actions</p><h2>One visual summary in every trusted review.</h2><p>The composite Action produces a job summary and retained artifact bundle. Same-repository PRs can publish updateable comments; fork PRs require a separately trusted artifact publisher.</p><pre><code>permissions:
+  contents: write
+  pull-requests: write
+
+steps:
+  - uses: actions/checkout@v4
+    with: &#123; fetch-depth: 0 &#125;
+  - uses: andrew-ships-stuff/impactr@4c58178f24bed98d70d6fb68fed9220431fa257a</code></pre><a href={url('/docs/github-actions/')}>Secure GitHub setup <ArrowRight size={15}/></a></div><div class="boundary"><ShieldCheck/><strong>Fork boundary</strong><span>Analyze unprivileged</span><i>↓ validated artifact</i><span>Publish from trusted code</span></div></article>
+    <article><div class="icon"><GitMerge/></div><div><p class="eyebrow">GitLab CI</p><h2>Repeatable merge request notes and artifacts.</h2><p>The checked-in CI job compares exact MR endpoints and retains the artifact bundle. Native note publishing exists, but currently re-analyzes configured refs; the docs call out that limitation until artifact-only publishing lands.</p><pre><code>impactr analyze \
+  --base "$CI_MERGE_REQUEST_DIFF_BASE_SHA" \
+  --head "$CI_COMMIT_SHA" \
+  --output .impactr</code></pre><a href={url('/docs/gitlab-ci/')}>GitLab CI guide <ArrowRight size={15}/></a></div><div class="mr-card"><b>Impactr analysis</b><span>updated · pipeline #482</span><hr/><small>+2 components · ~3 relationships</small><div class="artifact">impact.png</div><div class="artifact">report.json</div></div></article>
+  </div></section>
+</BaseLayout>
+<style>
+  .page-hero{background:var(--bg-soft);border-bottom:1px solid var(--line)}.page-hero .lede{max-width:760px}.integration-list{display:grid;gap:1rem}.integration-list>article{display:grid;grid-template-columns:56px minmax(0,1fr) 300px;gap:2rem;padding:2rem;border:1px solid var(--line);background:var(--surface)}.icon{width:52px;height:52px;display:grid;place-items:center;border:1px solid var(--line);color:var(--accent)}article h2{font-size:clamp(1.7rem,3vw,2.7rem);letter-spacing:-.04em;margin:.5rem 0}article p{color:var(--muted);line-height:1.65;max-width:700px}article a{display:inline-flex;align-items:center;gap:.4rem;color:var(--accent);margin-top:1rem;font-weight:700;font-size:.85rem}.integration-list pre{max-width:650px;padding:1.1rem;overflow:auto;background:var(--code-bg);color:var(--code-text);font:.75rem/1.7 var(--font-mono)}.flow{display:flex;align-items:center;justify-content:center;gap:.5rem}.flow span{border:1px solid var(--line);padding:.7rem}.flow .hot{border-color:var(--added);color:var(--added)}.boundary,.mr-card{align-self:center;border:1px solid var(--line);padding:1.2rem;background:var(--bg-soft);display:grid;gap:.6rem;color:var(--muted);font-size:.8rem}.boundary svg{color:var(--modified)}.boundary strong,.mr-card b{color:var(--text)}.mr-card span{font-size:.7rem}.artifact{border:1px solid var(--line);background:var(--surface-solid);padding:.6rem;font-family:var(--font-mono);font-size:.7rem}@media(max-width:900px){.integration-list>article{grid-template-columns:52px 1fr}.integration-list>article>:last-child{grid-column:2}}@media(max-width:600px){.integration-list>article{grid-template-columns:1fr;padding:1.2rem}.integration-list>article>:last-child{grid-column:1}.flow{justify-content:flex-start;overflow:auto}}
+</style>

@@ -12,6 +12,7 @@ import (
 	"github.com/andrew-ships-stuff/impactr/internal/inference"
 	"github.com/andrew-ships-stuff/impactr/internal/progress"
 	"github.com/andrew-ships-stuff/impactr/internal/render"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -127,25 +128,38 @@ func Run(ctx context.Context, start string, c config.Config, o Options) (render.
 	if !o.NoAI && providerName(c, o) != "none" {
 		prov, er := makeProvider(c, o, p)
 		if er == nil {
-			ictx, cancel := context.WithTimeout(ctx, c.InferenceTimeout())
-			got, ie := prov.Explain(ictx, req)
-			cancel()
-			if ie == nil {
-				ex = got
+			if narrator, ok := prov.(inference.Narrator); ok {
+				ictx, cancel := context.WithTimeout(ctx, 2*c.InferenceTimeout())
+				got, gotBrief, ie := narrator.Narrate(ictx, req, breq)
+				cancel()
+				if ie == nil {
+					ex, brief = got, gotBrief
+				} else {
+					ex = inference.Deterministic(req, ie.Error())
+					brief = inference.DeterministicBrief(breq, ie.Error())
+				}
 			} else {
-				ex = inference.Deterministic(req, ie.Error())
-			}
-			if b, ok := prov.(inference.Briefer); ok {
 				bctx, bcancel := context.WithTimeout(ctx, c.InferenceTimeout())
-				gotb, ber := b.Brief(bctx, breq)
+				got, ie := prov.Explain(bctx, req)
 				bcancel()
-				if ber == nil {
-					brief = gotb
+				if ie == nil {
+					ex = got
+				} else {
+					ex = inference.Deterministic(req, ie.Error())
+				}
+				if b, ok := prov.(inference.Briefer); ok {
+					briefCtx, briefCancel := context.WithTimeout(ctx, c.InferenceTimeout())
+					gotBrief, briefErr := b.Brief(briefCtx, breq)
+					briefCancel()
+					if briefErr == nil {
+						brief = gotBrief
+					}
 				}
 			}
 		} else {
-			p.Emit(progress.Event{Phase: "model", Detail: "unavailable: " + er.Error() + "; deterministic fallback", Done: true, Err: er})
+			p.Emit(progress.Event{Phase: "model", Detail: "unavailable: " + er.Error() + "; deterministic fallback", Done: true})
 			ex = inference.Deterministic(req, er.Error())
+			brief = inference.DeterministicBrief(breq, er.Error())
 		}
 	}
 	report := render.Report{SchemaVersion: graph.SchemaVersion, Before: before, After: after, Diff: d, Impact: impact, Explanation: ex, Files: changes, Brief: &brief, Rollup: views}
@@ -220,7 +234,7 @@ func artifactImages(r render.Report, clusters []graph.Cluster) []render.Image {
 		if r.Brief != nil {
 			for _, c := range r.Brief.Clusters {
 				if c.Package == cl.Package && strings.TrimSpace(c.Title) != "" {
-					caption = c.Title
+					caption = cl.Package + " — " + c.Title
 				}
 			}
 		}
@@ -234,86 +248,49 @@ func WriteArtifacts(dir string, r render.Report, max int) error {
 	}
 	items := map[string]any{"analysis.json": r, "graph-before.json": r.Before, "graph-after.json": r.After, "graph-diff.json": r.Diff, "report.json": r}
 	for name, v := range items {
-		f, e := os.Create(filepath.Join(dir, name))
-		if e != nil {
+		if e := writeArtifact(filepath.Join(dir, name), func(w io.Writer) error { return render.JSON(w, v) }); e != nil {
 			return e
-		}
-		e = render.JSON(f, v)
-		ce := f.Close()
-		if e != nil {
-			return e
-		}
-		if ce != nil {
-			return ce
 		}
 	}
 	overview := graph.OverviewDiff(r.Diff, r.Impact, 24)
-	svg, e := os.Create(filepath.Join(dir, "impact.svg"))
-	if e != nil {
+	if e := writeArtifact(filepath.Join(dir, "impact.svg"), func(w io.Writer) error { return render.SVG(w, overview, max, false) }); e != nil {
 		return e
 	}
-	e = render.SVG(svg, overview, max, false)
-	svg.Close()
-	if e != nil {
-		return e
-	}
-	pngf, e := os.Create(filepath.Join(dir, "impact.png"))
-	if e != nil {
-		return e
-	}
-	e = render.PNG(pngf, overview, max)
-	pngf.Close()
-	if e != nil {
+	if e := writeArtifact(filepath.Join(dir, "impact.png"), func(w io.Writer) error { return render.PNG(w, overview, max) }); e != nil {
 		return e
 	}
 	for i, cl := range graph.Clusters(r.Diff, r.Impact, 4, 14) {
-		cs, e := os.Create(filepath.Join(dir, fmt.Sprintf("impact-%d.svg", i+1)))
-		if e != nil {
+		if e := writeArtifact(filepath.Join(dir, fmt.Sprintf("impact-%d.svg", i+1)), func(w io.Writer) error {
+			return render.SVGTitled(w, cl.Diff, max, false, cl.Package+" data flow")
+		}); e != nil {
 			return e
 		}
-		e = render.SVGTitled(cs, cl.Diff, max, false, cl.Package+" data flow")
-		cs.Close()
-		if e != nil {
-			return e
-		}
-		cp, e := os.Create(filepath.Join(dir, fmt.Sprintf("impact-%d.png", i+1)))
-		if e != nil {
-			return e
-		}
-		e = render.PNG(cp, cl.Diff, max)
-		cp.Close()
-		if e != nil {
+		if e := writeArtifact(filepath.Join(dir, fmt.Sprintf("impact-%d.png", i+1)), func(w io.Writer) error { return render.PNG(w, cl.Diff, max) }); e != nil {
 			return e
 		}
 	}
-	mer, e := os.Create(filepath.Join(dir, "impact.mmd"))
-	if e != nil {
+	if e := writeArtifact(filepath.Join(dir, "impact.mmd"), func(w io.Writer) error { return render.Mermaid(w, r.Diff, max) }); e != nil {
 		return e
 	}
-	e = render.Mermaid(mer, r.Diff, max)
-	mer.Close()
-	if e != nil {
+	if e := os.WriteFile(filepath.Join(dir, "summary.md"), []byte(render.Markdown(r)), 0644); e != nil {
 		return e
 	}
-	if e = os.WriteFile(filepath.Join(dir, "summary.md"), []byte(render.Markdown(r)), 0644); e != nil {
+	if e := writeArtifact(filepath.Join(dir, "architecture.svg"), func(w io.Writer) error { return render.SVG(w, r.Diff, max, false) }); e != nil {
 		return e
 	}
-	arch, e := os.Create(filepath.Join(dir, "architecture.svg"))
-	if e != nil {
-		return e
+	return writeArtifact(filepath.Join(dir, "architecture.png"), func(w io.Writer) error { return render.PNG(w, r.Diff, max) })
+}
+
+func writeArtifact(path string, write func(io.Writer) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
 	}
-	e = render.SVG(arch, r.Diff, max, false)
-	_ = arch.Close()
-	if e != nil {
-		return e
+	if err = write(f); err != nil {
+		_ = f.Close()
+		return err
 	}
-	archPNG, e := os.Create(filepath.Join(dir, "architecture.png"))
-	if e != nil {
-		return e
-	}
-	e = render.PNG(archPNG, r.Diff, max)
-	_ = archPNG.Close()
-	return e
+	return f.Close()
 }
 func LoadReport(path string) (render.Report, error) {
 	var r render.Report

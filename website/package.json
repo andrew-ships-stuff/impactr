@@ -1,0 +1,30 @@
+{
+  "name": "impactr-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build && pagefind --site dist",
+    "check": "astro check",
+    "links": "node scripts/check-links.mjs",
+    "test": "npm run build && npm run links && playwright test"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.12",
+    "@astrojs/mdx": "^8.1.6",
+    "@astrojs/sitemap": "^3.7.5",
+    "@fontsource-variable/dm-sans": "^5.2.8",
+    "@fontsource-variable/jetbrains-mono": "^5.2.8",
+    "@lucide/astro": "^1.73.0",
+    "@tailwindcss/vite": "^4.3.5",
+    "astro": "^7.4.12",
+    "pagefind": "^1.6.0",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.0",
+    "@playwright/test": "^1.56.1"
+  }
+}
