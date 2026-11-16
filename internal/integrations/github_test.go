@@ -33,10 +33,13 @@ func (f *fake) Run(_ context.Context, n string, a ...string) error {
 
 type fakeQuery struct {
 	fake
-	out      string
-	upload   string
-	okCommit bool
-	putCalls [][]string
+	out            string
+	upload         string
+	okCommit       bool
+	missingBranch  bool
+	refCreated     bool
+	putCalls       [][]string
+	refCreateCalls int
 }
 
 func (f *fakeQuery) Output(_ context.Context, _ string, a ...string) ([]byte, error) {
@@ -51,8 +54,19 @@ func (f *fakeQuery) Output(_ context.Context, _ string, a ...string) ([]byte, er
 		if !f.okCommit {
 			return nil, fmt.Errorf("gh: Resource not accessible by integration")
 		}
+		if f.missingBranch && !f.refCreated {
+			return nil, fmt.Errorf("gh: Branch impactr-assets not found (HTTP 404)")
+		}
 		f.putCalls = append(f.putCalls, a)
 		return []byte(`{"content":{"sha":"newsha"}}`), nil
+	case strings.Contains(joined, "git/refs"):
+		f.refCreated = true
+		f.refCreateCalls++
+		return []byte(`{"ref":"refs/heads/impactr-assets"}`), nil
+	case strings.Contains(joined, "commits/"):
+		return []byte("deadbeef\n"), nil
+	case strings.Contains(joined, "default_branch"):
+		return []byte("master\n"), nil
 	case strings.Contains(joined, "contents/"):
 		return []byte("null\n"), nil
 	}
@@ -133,6 +147,25 @@ func TestGitHubCommentCommitsAssetForGitHubToken(t *testing.T) {
 	want := "](https://raw.githubusercontent.com/o/r/impactr-assets/impactr/pr-12.png)"
 	if !strings.Contains(f.body, want) || strings.Contains(f.body, "](impact.png)") {
 		t.Fatalf("body not rewritten to raw asset URL: %s", f.body)
+	}
+}
+
+func TestGitHubCommentCreatesMissingAssetBranch(t *testing.T) {
+	f := &fakeQuery{out: "8 7 2\n", okCommit: true, missingBranch: true}
+	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
+	img := filepath.Join(t.TempDir(), "impact.png")
+	if e := os.WriteFile(img, []byte("fakepng"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, img); e != nil {
+		t.Fatal(e)
+	}
+	if f.refCreateCalls != 1 {
+		t.Fatalf("expected one branch creation, got %d", f.refCreateCalls)
+	}
+	want := "](https://raw.githubusercontent.com/o/r/impactr-assets/impactr/pr-12.png)"
+	if !strings.Contains(f.body, want) {
+		t.Fatalf("body not rewritten after branch create: %s", f.body)
 	}
 }
 

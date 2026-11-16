@@ -154,11 +154,38 @@ func commitAsset(ctx context.Context, r OutputRunner, repo string, pr int, path 
 		return "", false
 	}
 	tmp.Close()
-	if _, e = r.Output(ctx, "gh", "api", "--method", "PUT", "repos/"+repo+"/contents/"+p, "--input", tmp.Name()); e != nil {
+	_, e = r.Output(ctx, "gh", "api", "--method", "PUT", "repos/"+repo+"/contents/"+p, "--input", tmp.Name())
+	if e != nil && strings.Contains(e.Error(), "not found") {
+		if !createBranch(ctx, r, repo, branch) {
+			fmt.Fprintf(os.Stderr, "impactr: contents API failed: %v\n", e)
+			return "", false
+		}
+		if _, e = r.Output(ctx, "gh", "api", "--method", "PUT", "repos/"+repo+"/contents/"+p, "--input", tmp.Name()); e != nil {
+			fmt.Fprintf(os.Stderr, "impactr: contents API failed after branch create: %v\n", e)
+			return "", false
+		}
+		return "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + p, true
+	}
+	if e != nil {
 		fmt.Fprintf(os.Stderr, "impactr: contents API failed: %v\n", e)
 		return "", false
 	}
 	return "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + p, true
+}
+
+func createBranch(ctx context.Context, r OutputRunner, repo, branch string) bool {
+	def, e := r.Output(ctx, "gh", "api", "repos/"+repo, "--jq", ".default_branch")
+	if e != nil {
+		return false
+	}
+	sha, e := r.Output(ctx, "gh", "api", fmt.Sprintf("repos/%s/commits/%s", repo, strings.TrimSpace(string(def))), "--jq", ".sha")
+	if e != nil {
+		return false
+	}
+	_, e = r.Output(ctx, "gh", "api", "--method", "POST", "repos/"+repo+"/git/refs",
+		"-f", "ref=refs/heads/"+branch,
+		"-f", "sha="+strings.TrimSpace(string(sha)))
+	return e == nil
 }
 
 func contentsSHA(ctx context.Context, r OutputRunner, repo, p, branch string) (string, bool) {
