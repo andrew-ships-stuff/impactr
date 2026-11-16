@@ -21,6 +21,11 @@ import (
 	"strings"
 )
 
+type Image struct {
+	Path    string `json:"path"`
+	Caption string `json:"caption"`
+}
+
 type Report struct {
 	SchemaVersion string                `json:"schema_version"`
 	Before        graph.Graph           `json:"before"`
@@ -29,6 +34,9 @@ type Report struct {
 	Impact        graph.Impact          `json:"impact"`
 	Explanation   inference.Explanation `json:"explanation"`
 	Files         []gitx.FileChange     `json:"files"`
+	Brief         *inference.Brief      `json:"brief,omitempty"`
+	Rollup        []graph.PackageView   `json:"rollup,omitempty"`
+	Images        []Image               `json:"images,omitempty"`
 }
 
 type point struct{ x, y int }
@@ -298,12 +306,16 @@ func fit(s string, n int) string {
 }
 
 func SVG(w io.Writer, d graph.Diff, max int, dark bool) error {
+	return SVGTitled(w, d, max, dark, "Impactr architecture impact")
+}
+
+func SVGTitled(w io.Writer, d graph.Diff, max int, dark bool, title string) error {
 	pl := layout(d, max)
 	bg, fg, muted := "#ffffff", "#0f172a", "#475569"
 	if dark {
 		bg, fg, muted = "#0f172a", "#e2e8f0", "#94a3b8"
 	}
-	fmt.Fprintf(w, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" role="img"><title>Impactr architecture impact</title><rect width="100%%" height="100%%" fill="%s"/><defs>`, pl.width, pl.height, pl.width, pl.height, bg)
+	fmt.Fprintf(w, `<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d" role="img"><title>%s</title><rect width="100%%" height="100%%" fill="%s"/><defs>`, pl.width, pl.height, pl.width, pl.height, html.EscapeString(title), bg)
 	for _, m := range []struct{ id, color string }{{"a-neutral", "#64748b"}, {"a-added", "#16a34a"}, {"a-removed", "#dc2626"}, {"a-modified", "#d97706"}} {
 		fmt.Fprintf(w, `<marker id="%s" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="%s"/></marker>`, m.id, m.color)
 	}
@@ -487,9 +499,47 @@ func Terminal(w io.Writer, r Report) error {
 func Markdown(r Report) string {
 	var b strings.Builder
 	s := r.Diff.Summary
-	fmt.Fprintf(&b, "<!-- impactr-comment:v1 -->\n<!-- impactr-stats:v1 nodes=%d edges=%d affected=%d head=%s -->\n## Impactr architecture impact\n\n**+%d / −%d / ~%d nodes** · **+%d / −%d relationships** · **%d potentially affected**\n\n%s\n\n![Impact graph](impact.png)\n\n<details><summary>Evidence-backed findings</summary>\n\n",
+	headline := r.Explanation.Summary
+	if r.Brief != nil && strings.TrimSpace(r.Brief.Headline) != "" {
+		headline = r.Brief.Headline
+	}
+	fmt.Fprintf(&b, "<!-- impactr-comment:v1 -->\n<!-- impactr-stats:v1 nodes=%d edges=%d affected=%d head=%s -->\n## Impactr impact\n\n%s\n\n**+%d / −%d / ~%d nodes** · **+%d / −%d relationships** · **%d potentially affected**\n\n",
 		s.NodesAdded+s.NodesRemoved+s.NodesModified, s.EdgesAdded+s.EdgesRemoved, len(r.Impact.Affected), r.After.Provenance.HeadSHA,
-		s.NodesAdded, s.NodesRemoved, s.NodesModified, s.EdgesAdded, s.EdgesRemoved, len(r.Impact.Affected), r.Explanation.Summary)
+		headline, s.NodesAdded, s.NodesRemoved, s.NodesModified, s.EdgesAdded, s.EdgesRemoved, len(r.Impact.Affected))
+	if len(r.Rollup) > 0 {
+		b.WriteString("**Where it lands**\n\n")
+		top := r.Rollup
+		if len(top) > 8 {
+			top = top[:8]
+		}
+		deps := 0
+		for _, v := range top {
+			if v.External {
+				deps += v.Added + v.Removed + v.Modified
+				continue
+			}
+			title := ""
+			if r.Brief != nil {
+				for _, c := range r.Brief.Clusters {
+					if c.Package == v.Package {
+						title = " — " + c.Title
+					}
+				}
+			}
+			fmt.Fprintf(&b, "- `%s` — +%d/−%d/~%d changed, %d potentially affected%s\n", v.Package, v.Added, v.Removed, v.Modified, v.Affected, title)
+		}
+		if deps > 0 {
+			fmt.Fprintf(&b, "- %d external dependency facts (imports/packages) added\n", deps)
+		}
+		b.WriteString("\n")
+	}
+	for _, im := range r.Images {
+		fmt.Fprintf(&b, "![%s](%s)\n\n", strings.ReplaceAll(im.Caption, "[", "("), im.Path)
+	}
+	if r.Brief == nil && r.Explanation.Summary != "" {
+		fmt.Fprintf(&b, "%s\n\n", r.Explanation.Summary)
+	}
+	b.WriteString("<details><summary>Evidence-backed findings</summary>\n\n")
 	for _, c := range r.Explanation.Claims {
 		fmt.Fprintf(&b, "- %s (`%s`)\n", c.Text, c.Classification)
 	}

@@ -123,7 +123,7 @@ func uploadAsset(ctx context.Context, r OutputRunner, repo, path string) (string
 // commitAsset stores the diagram on a dedicated assets branch through the
 // Contents API and returns its raw URL. This is the fallback for GITHUB_TOKEN,
 // which the uploads endpoint rejects with 404.
-func commitAsset(ctx context.Context, r OutputRunner, repo string, pr int, path string) (string, bool) {
+func commitAsset(ctx context.Context, r OutputRunner, repo string, pr int, path, suffix string) (string, bool) {
 	if repo == "" {
 		return "", false
 	}
@@ -131,7 +131,8 @@ func commitAsset(ctx context.Context, r OutputRunner, repo string, pr int, path 
 	if e != nil {
 		return "", false
 	}
-	branch, p := "impactr-assets", fmt.Sprintf("impactr/pr-%d.png", pr)
+	name := fmt.Sprintf("pr-%d%s.png", pr, suffix)
+	branch, p := "impactr-assets", "impactr/"+name
 	payload := map[string]any{
 		"content": base64.StdEncoding.EncodeToString(data),
 		"branch":  branch,
@@ -200,7 +201,7 @@ func contentsSHA(ctx context.Context, r OutputRunner, repo, p, branch string) (s
 	return sha, true
 }
 
-func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile, image string) error {
+func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile string, images []string) error {
 	if pr < 1 {
 		return fmt.Errorf("invalid pull request number")
 	}
@@ -218,22 +219,32 @@ func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile,
 			}
 		}
 	}
-	attach := ""
-	if image != "" {
+	attach := []string{}
+	if len(images) > 0 {
 		uploaded := false
-		if qr, rok := r.(OutputRunner); rok {
-			if url, ok := uploadAsset(ctx, qr, repo, image); ok {
+		if qr, rok := r.(OutputRunner); rok && repo != "" {
+			uploaded = true
+			for i, image := range images {
+				url, ok := uploadAsset(ctx, qr, repo, image)
+				if !ok {
+					suffix := ""
+					if i > 0 {
+						suffix = "-" + strconv.Itoa(i)
+					}
+					url, ok = commitAsset(ctx, qr, repo, pr, image, suffix)
+				}
+				if !ok {
+					uploaded = false
+					break
+				}
 				body = []byte(strings.ReplaceAll(string(body), "]("+filepath.Base(image)+")", "]("+url+")"))
 				changed = true
-				uploaded = true
-			} else if url, ok := commitAsset(ctx, qr, repo, pr, image); ok {
-				body = []byte(strings.ReplaceAll(string(body), "]("+filepath.Base(image)+")", "]("+url+")"))
-				changed = true
-				uploaded = true
 			}
 		}
 		if !uploaded {
-			attach = image + "#Impactr architecture impact diagram"
+			for _, image := range images {
+				attach = append(attach, image+"#Impactr architecture impact diagram")
+			}
 		}
 	}
 	args := []string{"pr", "comment", strconv.Itoa(pr)}
@@ -268,14 +279,14 @@ func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile,
 	if repo != "" {
 		args = append(args, "--repo", repo)
 	}
-	if attach != "" {
-		args = append(args, "--attach", attach)
+	for _, a := range attach {
+		args = append(args, "--attach", a)
 	}
 	err := r.Run(ctx, "gh", args...)
-	if err != nil && attach != "" {
-		fmt.Fprintf(os.Stderr, "impactr: comment with attached image failed (%v); retrying without image\n", err)
+	if err != nil && len(attach) > 0 {
+		fmt.Fprintf(os.Stderr, "impactr: comment with attached images failed (%v); retrying without images\n", err)
 		_ = cleanup()
-		body = []byte(stripImage(string(body), filepath.Base(image)))
+		body = []byte(stripImages(string(body)))
 		changed = true
 		var te error
 		bf, cleanup, te = write(body)
@@ -298,7 +309,7 @@ func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile,
 	return cleanup()
 }
 
-func stripImage(body, base string) string {
-	re := regexp.MustCompile(`(?m)^\s*!\[[^\]]*\]\(` + regexp.QuoteMeta(base) + `\)\s*\n?`)
+func stripImages(body string) string {
+	re := regexp.MustCompile(`(?m)^\s*!\[[^\]]*\]\([^)]*\)\s*\n?`)
 	return re.ReplaceAllString(body, "")
 }

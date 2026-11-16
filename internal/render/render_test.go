@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/andrew-ships-stuff/impactr/internal/graph"
+	"github.com/andrew-ships-stuff/impactr/internal/inference"
 	"regexp"
 	"strconv"
 	"strings"
@@ -83,6 +84,23 @@ func TestSVGEdgesStayInsideCanvas(t *testing.T) {
 			if x < 0 || x > width || y < 0 || y > height {
 				t.Fatalf("edge endpoint %d,%d outside canvas %dx%d", x, y, width, height)
 			}
+		}
+	}
+}
+
+func TestMarkdownBriefRollupAndImages(t *testing.T) {
+	r := Report{
+		Diff:   graph.Diff{Summary: graph.ChangeSummary{NodesAdded: 2, NodesModified: 1, EdgesAdded: 3}},
+		Impact: graph.Impact{Affected: []graph.Affected{{NodeID: "x"}}},
+		Brief:  &inference.Brief{Headline: "session gains validation", Clusters: []inference.ClusterBrief{{Package: "session", Title: "validation data flow"}}},
+		Rollup: []graph.PackageView{{Package: "session", Added: 2, Affected: 1}},
+		Images: []Image{{Path: "impact.png", Caption: "Package impact overview"}, {Path: "impact-1.png", Caption: "validation data flow"}},
+	}
+	r.After.Provenance.HeadSHA = "abc1234"
+	md := Markdown(r)
+	for _, want := range []string{"session gains validation", "`session` — +2/−0/~0 changed, 1 potentially affected — validation data flow", "![validation data flow](impact-1.png)", "impactr-stats:v1 nodes=3 edges=3 affected=1"} {
+		if !strings.Contains(md, want) {
+			t.Fatalf("missing %q in:\n%s", want, md)
 		}
 	}
 }

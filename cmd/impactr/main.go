@@ -79,7 +79,11 @@ func analyze(ctx context.Context, f flags) error {
 		mode = gitx.Staged
 		f.noAI = true
 	}
-	rep, e := app.Run(ctx, cwd, c, app.Options{Base: base, Head: f.head, Mode: mode, NoAI: f.noAI, Provider: f.provider, Model: f.model, OutputDir: f.output, Version: version})
+	opts := app.Options{Base: base, Head: f.head, Mode: mode, NoAI: f.noAI, Provider: f.provider, Model: f.model, OutputDir: f.output, Version: version}
+	if f.format == "terminal" {
+		opts.Progress = newTerminalReporter()
+	}
+	rep, e := app.Run(ctx, cwd, c, opts)
 	if e != nil {
 		return e
 	}
@@ -196,7 +200,7 @@ func githubCmd(f *flags) *cobra.Command {
 				return e
 			}
 		}
-		return integrations.GitHubComment(cmd.Context(), integrations.ExecRunner{}, pr, repo, filepath.Join(out, "summary.md"), filepath.Join(out, "impact.png"))
+		return integrations.GitHubComment(cmd.Context(), integrations.ExecRunner{}, pr, repo, filepath.Join(out, "summary.md"), artifactFiles(out))
 	}}
 	c.Flags().IntVar(&pr, "pr", envInt("GITHUB_PR_NUMBER"), "pull request number")
 	c.Flags().StringVar(&repo, "repo", os.Getenv("GITHUB_REPOSITORY"), "owner/repository")
@@ -222,7 +226,7 @@ func gitlabCmd(f *flags) *cobra.Command {
 			return e
 		}
 		client := integrations.GitLab{BaseURL: baseURL, Project: project, Token: os.Getenv("GITLAB_TOKEN")}
-		return client.Comment(cmd.Context(), mr, string(b), filepath.Join(out, "impact.png"))
+		return client.Comment(cmd.Context(), mr, string(b), artifactFiles(out))
 	}}
 	c.Flags().IntVar(&mr, "mr", envInt("CI_MERGE_REQUEST_IID"), "merge request IID")
 	c.Flags().StringVar(&project, "project", os.Getenv("CI_PROJECT_ID"), "project ID or path")
@@ -232,6 +236,21 @@ func gitlabCmd(f *flags) *cobra.Command {
 	return g
 }
 func envInt(k string) int { n, _ := strconv.Atoi(os.Getenv(k)); return n }
+func artifactFiles(out string) []string {
+	imgs := []string{}
+	if p := filepath.Join(out, "impact.png"); fileExists(p) {
+		imgs = append(imgs, p)
+	}
+	for i := 1; ; i++ {
+		p := filepath.Join(out, fmt.Sprintf("impact-%d.png", i))
+		if !fileExists(p) {
+			break
+		}
+		imgs = append(imgs, p)
+	}
+	return imgs
+}
+func fileExists(p string) bool { _, e := os.Stat(p); return e == nil }
 func validateCmd() *cobra.Command {
 	var dir string
 	c := &cobra.Command{Use: "validate-artifact", Short: "Validate an untrusted artifact bundle", RunE: func(cmd *cobra.Command, args []string) error { return artifact.Validate(dir) }}

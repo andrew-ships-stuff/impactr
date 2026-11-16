@@ -85,7 +85,7 @@ func writeSummary(t *testing.T, stats string) string {
 
 func TestGitHubIdempotentArgs(t *testing.T) {
 	f := &fake{}
-	if e := GitHubComment(context.Background(), f, 12, "o/r", "summary.md", "impact.png"); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", "summary.md", []string{"impact.png"}); e != nil {
 		t.Fatal(e)
 	}
 	want := []string{"pr", "comment", "12", "--body-file", "summary.md", "--edit-last", "--create-if-none", "--repo", "o/r", "--attach", "impact.png#Impactr architecture impact diagram"}
@@ -97,7 +97,7 @@ func TestGitHubIdempotentArgs(t *testing.T) {
 func TestGitHubCommentEditsWhenSimilar(t *testing.T) {
 	f := &fakeQuery{out: "8 7 2\n"}
 	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, "impact.png"); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, []string{"impact.png"}); e != nil {
 		t.Fatal(e)
 	}
 	if !hasFlag(f.a, "--edit-last") || !hasFlag(f.a, "--create-if-none") {
@@ -114,7 +114,7 @@ func TestGitHubCommentEditsWhenSimilar(t *testing.T) {
 func TestGitHubCommentUploadsImageViaAPI(t *testing.T) {
 	f := &fakeQuery{out: "8 7 2\n", upload: `{"asset_url":"https://gh.example/assets/impact.png"}`}
 	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, "impact.png"); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, []string{"impact.png"}); e != nil {
 		t.Fatal(e)
 	}
 	if hasFlag(f.a, "--attach") {
@@ -135,7 +135,7 @@ func TestGitHubCommentCommitsAssetForGitHubToken(t *testing.T) {
 	if e := os.WriteFile(img, []byte("fakepng"), 0600); e != nil {
 		t.Fatal(e)
 	}
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, img); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, []string{img}); e != nil {
 		t.Fatal(e)
 	}
 	if len(f.putCalls) == 0 {
@@ -157,7 +157,7 @@ func TestGitHubCommentCreatesMissingAssetBranch(t *testing.T) {
 	if e := os.WriteFile(img, []byte("fakepng"), 0600); e != nil {
 		t.Fatal(e)
 	}
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, img); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, []string{img}); e != nil {
 		t.Fatal(e)
 	}
 	if f.refCreateCalls != 1 {
@@ -172,7 +172,7 @@ func TestGitHubCommentCreatesMissingAssetBranch(t *testing.T) {
 func TestGitHubCommentNewCommentWhenSubstantial(t *testing.T) {
 	f := &fakeQuery{out: "1 0 0\n"}
 	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, "impact.png"); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, []string{"impact.png"}); e != nil {
 		t.Fatal(e)
 	}
 	if hasFlag(f.a, "--edit-last") || hasFlag(f.a, "--create-if-none") {
@@ -192,7 +192,7 @@ func TestGitHubCommentNewCommentWhenSubstantial(t *testing.T) {
 func TestGitHubCommentShrinkIsSubstantial(t *testing.T) {
 	f := &fakeQuery{out: "40 30 20\n"}
 	body := writeSummary(t, "nodes=3 edges=2 affected=1 head=abc1234")
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, ""); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, nil); e != nil {
 		t.Fatal(e)
 	}
 	if hasFlag(f.a, "--edit-last") {
@@ -213,7 +213,7 @@ func TestParseStats(t *testing.T) {
 func TestGitHubCommentDegradesWhenAttachFails(t *testing.T) {
 	f := &fakeQuery{fake: fake{failAttach: true}, out: "8 7 2\n"}
 	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
-	if e := GitHubComment(context.Background(), f, 12, "o/r", body, "impact.png"); e != nil {
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, []string{"impact.png"}); e != nil {
 		t.Fatal(e)
 	}
 	if hasFlag(f.a, "--attach") {
