@@ -10,9 +10,11 @@ import (
 	gitx "github.com/andrew-ships-stuff/impactr/internal/git"
 	"github.com/andrew-ships-stuff/impactr/internal/graph"
 	"github.com/andrew-ships-stuff/impactr/internal/inference"
+	"github.com/andrew-ships-stuff/impactr/internal/progress"
 	"github.com/andrew-ships-stuff/impactr/internal/render"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
@@ -23,13 +25,16 @@ type Options struct {
 	NoAI                       bool
 	Provider, Model, OutputDir string
 	Version                    string
+	Progress                   *progress.Reporter
 }
 
 func Run(ctx context.Context, start string, c config.Config, o Options) (render.Report, error) {
+	p := o.Progress
 	repo, e := gitx.Open(ctx, start)
 	if e != nil {
 		return render.Report{}, e
 	}
+	p.Emit(progress.Event{Phase: "git", Detail: "repository " + filepath.Base(repo.Root), Done: true})
 	var beforeRoot, afterRoot string
 	var cb, ca func()
 	var baseSHA, headSHA, comparison string
@@ -70,6 +75,7 @@ func Run(ctx context.Context, start string, c config.Config, o Options) (render.
 	if e != nil {
 		return render.Report{}, e
 	}
+	p.Emit(progress.Event{Phase: "git", Detail: fmt.Sprintf("%s…%s (%d files changed)", short(baseSHA), short(headSHA), len(changes)), Done: true})
 	if cb != nil {
 		defer cb()
 	}
@@ -83,8 +89,18 @@ func Run(ctx context.Context, start string, c config.Config, o Options) (render.
 	var eb, ea error
 	var wg sync.WaitGroup
 	wg.Add(2)
-	go func() { defer wg.Done(); before, eb = eng.Analyze(ctx, beforeRoot, baseSHA, aopt) }()
-	go func() { defer wg.Done(); after, ea = eng.Analyze(ctx, afterRoot, headSHA, aopt) }()
+	go func() {
+		defer wg.Done()
+		t := time.Now()
+		before, eb = eng.Analyze(ctx, beforeRoot, baseSHA, aopt)
+		p.Emit(progress.Event{Phase: "analyze base", Detail: fmt.Sprintf("%d nodes · %d edges", len(before.Nodes), len(before.Edges)), Done: true, Err: eb, Elapsed: time.Since(t)})
+	}()
+	go func() {
+		defer wg.Done()
+		t := time.Now()
+		after, ea = eng.Analyze(ctx, afterRoot, headSHA, aopt)
+		p.Emit(progress.Event{Phase: "analyze head", Detail: fmt.Sprintf("%d nodes · %d edges", len(after.Nodes), len(after.Edges)), Done: true, Err: ea, Elapsed: time.Since(t)})
+	}()
 	wg.Wait()
 	if eb != nil {
 		return render.Report{}, eb
@@ -98,24 +114,42 @@ func Run(ctx context.Context, start string, c config.Config, o Options) (render.
 	after.Provenance = prov
 	d := graph.Compare(before, after)
 	impact := graph.BlastRadius(d, c.Analysis.MaxDepth, c.Analysis.MaxNodes)
+	p.Emit(progress.Event{Phase: "compare", Detail: fmt.Sprintf("+%d/−%d/~%d nodes · +%d/−%d edges · %d potentially affected", d.Summary.NodesAdded, d.Summary.NodesRemoved, d.Summary.NodesModified, d.Summary.EdgesAdded, d.Summary.EdgesRemoved, len(impact.Affected)), Done: true})
+	if o.NoAI {
+		p.Emit(progress.Event{Phase: "model", Detail: "skipped (--no-ai); deterministic facts only", Done: true})
+	}
+	views := graph.PackageViews(d, impact)
+	clusters := graph.Clusters(d, impact, 4, 14)
 	req := inference.Request{Diff: d, Impact: impact, MaxTokens: c.Inference.MaxOutputTokens}
 	ex := inference.Deterministic(req, "")
+	breq := inference.BriefRequest{Views: views, Clusters: clusters, MaxTokens: c.Inference.MaxOutputTokens}
+	brief := inference.DeterministicBrief(breq, "")
 	if !o.NoAI && providerName(c, o) != "none" {
-		p, er := makeProvider(c, o)
+		prov, er := makeProvider(c, o, p)
 		if er == nil {
 			ictx, cancel := context.WithTimeout(ctx, c.InferenceTimeout())
-			got, ie := p.Explain(ictx, req)
+			got, ie := prov.Explain(ictx, req)
 			cancel()
 			if ie == nil {
 				ex = got
 			} else {
 				ex = inference.Deterministic(req, ie.Error())
 			}
+			if b, ok := prov.(inference.Briefer); ok {
+				bctx, bcancel := context.WithTimeout(ctx, c.InferenceTimeout())
+				gotb, ber := b.Brief(bctx, breq)
+				bcancel()
+				if ber == nil {
+					brief = gotb
+				}
+			}
 		} else {
+			p.Emit(progress.Event{Phase: "model", Detail: "unavailable: " + er.Error() + "; deterministic fallback", Done: true, Err: er})
 			ex = inference.Deterministic(req, er.Error())
 		}
 	}
-	report := render.Report{SchemaVersion: graph.SchemaVersion, Before: before, After: after, Diff: d, Impact: impact, Explanation: ex, Files: changes}
+	report := render.Report{SchemaVersion: graph.SchemaVersion, Before: before, After: after, Diff: d, Impact: impact, Explanation: ex, Files: changes, Brief: &brief, Rollup: views}
+	report.Images = artifactImages(report, clusters)
 	out := o.OutputDir
 	if out == "" {
 		out = filepath.Join(repo.Root, ".impactr")
@@ -123,7 +157,18 @@ func Run(ctx context.Context, start string, c config.Config, o Options) (render.
 	if e = WriteArtifacts(out, report, c.Render.MaxNodes); e != nil {
 		return report, e
 	}
+	n := 0
+	if entries, le := os.ReadDir(out); le == nil {
+		n = len(entries)
+	}
+	p.Emit(progress.Event{Phase: "artifacts", Detail: fmt.Sprintf("%d files → %s", n, out), Done: true})
 	return report, nil
+}
+func short(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
 }
 func providerName(c config.Config, o Options) string {
 	if o.Provider != "" {
@@ -131,11 +176,16 @@ func providerName(c config.Config, o Options) string {
 	}
 	return c.Inference.Provider
 }
-func makeProvider(c config.Config, o Options) (inference.Provider, error) {
+func makeProvider(c config.Config, o Options, rep *progress.Reporter) (inference.Provider, error) {
 	name := providerName(c, o)
 	model := o.Model
 	if model == "" || model == "auto" {
 		model = c.Inference.Model
+	}
+	emit := func(ev progress.Event) {
+		if rep != nil {
+			rep.Emit(ev)
+		}
 	}
 	switch name {
 	case "embedded":
@@ -144,24 +194,39 @@ func makeProvider(c config.Config, o Options) (inference.Provider, error) {
 		if e != nil {
 			return nil, fmt.Errorf("model unavailable; run `impactr model install`: %w", e)
 		}
-		return inference.Embedded{ModelPath: p, ModelName: inference.DefaultModel.Name, Threads: c.Inference.Threads, ContextLength: c.Inference.ContextLength, MaxMemoryMB: c.Inference.MaxMemoryMB}, nil
+		return inference.Embedded{ModelPath: p, ModelName: inference.DefaultModel.Name, Threads: c.Inference.Threads, ContextLength: c.Inference.ContextLength, MaxMemoryMB: c.Inference.MaxMemoryMB, Report: emit}, nil
 	case "ollama":
 		ep := c.Inference.Endpoint
 		if ep == "" {
 			ep = "http://127.0.0.1:11434"
 		}
-		return inference.HTTPProvider{ProviderName: name, Endpoint: ep, Model: model}, nil
+		return inference.HTTPProvider{ProviderName: name, Endpoint: ep, Model: model, Report: emit}, nil
 	case "llama-server", "openai-compatible":
 		ep := c.Inference.Endpoint
 		if ep == "" {
 			ep = "http://127.0.0.1:8080"
 		}
-		return inference.HTTPProvider{ProviderName: name, Endpoint: ep, Model: model, APIKey: os.Getenv("IMPACTR_API_KEY")}, nil
+		return inference.HTTPProvider{ProviderName: name, Endpoint: ep, Model: model, APIKey: os.Getenv("IMPACTR_API_KEY"), Report: emit}, nil
 	case "none":
 		return nil, errors.New("inference disabled")
 	default:
 		return nil, fmt.Errorf("unknown provider %q", name)
 	}
+}
+func artifactImages(r render.Report, clusters []graph.Cluster) []render.Image {
+	imgs := []render.Image{{Path: "impact.png", Caption: "Package impact overview"}}
+	for i, cl := range clusters {
+		caption := cl.Package + " data flow"
+		if r.Brief != nil {
+			for _, c := range r.Brief.Clusters {
+				if c.Package == cl.Package && strings.TrimSpace(c.Title) != "" {
+					caption = c.Title
+				}
+			}
+		}
+		imgs = append(imgs, render.Image{Path: fmt.Sprintf("impact-%d.png", i+1), Caption: caption})
+	}
+	return imgs
 }
 func WriteArtifacts(dir string, r render.Report, max int) error {
 	if e := os.MkdirAll(dir, 0755); e != nil {
@@ -182,12 +247,12 @@ func WriteArtifacts(dir string, r render.Report, max int) error {
 			return ce
 		}
 	}
+	overview := graph.OverviewDiff(r.Diff, r.Impact, 24)
 	svg, e := os.Create(filepath.Join(dir, "impact.svg"))
 	if e != nil {
 		return e
 	}
-	impactDiff := render.ImpactDiff(r.Diff, r.Impact)
-	e = render.SVG(svg, impactDiff, max, false)
+	e = render.SVG(svg, overview, max, false)
 	svg.Close()
 	if e != nil {
 		return e
@@ -196,10 +261,30 @@ func WriteArtifacts(dir string, r render.Report, max int) error {
 	if e != nil {
 		return e
 	}
-	e = render.PNG(pngf, impactDiff, max)
+	e = render.PNG(pngf, overview, max)
 	pngf.Close()
 	if e != nil {
 		return e
+	}
+	for i, cl := range graph.Clusters(r.Diff, r.Impact, 4, 14) {
+		cs, e := os.Create(filepath.Join(dir, fmt.Sprintf("impact-%d.svg", i+1)))
+		if e != nil {
+			return e
+		}
+		e = render.SVGTitled(cs, cl.Diff, max, false, cl.Package+" data flow")
+		cs.Close()
+		if e != nil {
+			return e
+		}
+		cp, e := os.Create(filepath.Join(dir, fmt.Sprintf("impact-%d.png", i+1)))
+		if e != nil {
+			return e
+		}
+		e = render.PNG(cp, cl.Diff, max)
+		cp.Close()
+		if e != nil {
+			return e
+		}
 	}
 	mer, e := os.Create(filepath.Join(dir, "impact.mmd"))
 	if e != nil {

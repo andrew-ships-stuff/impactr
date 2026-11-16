@@ -1,3 +1,4 @@
 .impactr/
 dist/
 bin/
+.DS_Store

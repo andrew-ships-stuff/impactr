@@ -40,11 +40,11 @@ func (g GitLab) request(ctx context.Context, method, path string, body io.Reader
 	}
 	return c.Do(req)
 }
-func (g GitLab) Comment(ctx context.Context, mr int, markdown, imagePath string) error {
+func (g GitLab) Comment(ctx context.Context, mr int, markdown string, images []string) error {
 	if g.Token == "" {
 		return fmt.Errorf("GITLAB_TOKEN is required")
 	}
-	if imagePath != "" {
+	for _, imagePath := range images {
 		f, e := os.Open(imagePath)
 		if e != nil {
 			return e
@@ -73,7 +73,14 @@ func (g GitLab) Comment(ctx context.Context, mr int, markdown, imagePath string)
 		if e = json.Unmarshal(raw, &up); e != nil {
 			return e
 		}
-		markdown = strings.Replace(markdown, "![Impact graph](impact.png)", up.Markdown, 1)
+		base := filepath.Base(imagePath)
+		lines := strings.Split(markdown, "\n")
+		for i, ln := range lines {
+			if strings.Contains(ln, "]("+base+")") {
+				lines[i] = up.Markdown
+			}
+		}
+		markdown = strings.Join(lines, "\n")
 	}
 	path := "/merge_requests/" + strconv.Itoa(mr) + "/notes"
 	resp, e := g.request(ctx, http.MethodGet, path+"?per_page=100", nil, "")

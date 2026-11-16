@@ -53,7 +53,7 @@ The repository is a reusable composite Action:
 name: Impactr
 on: [pull_request]
 permissions:
-  contents: read
+  contents: write # needed only to upload the attached impact.png
   pull-requests: write
 jobs:
   impactr:
