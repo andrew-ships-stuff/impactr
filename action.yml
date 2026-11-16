@@ -11,14 +11,14 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/setup-go@v5
+    - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
       with: {go-version: "1.26.x", cache: false}
     - name: Build trusted Impactr action code
       shell: bash
       run: go -C "${{ github.action_path }}" build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/impactr" ./cmd/impactr
     - name: Cache embedded model
       if: ${{ inputs.provider == 'embedded' }}
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.cache/impactr/models
         key: impactr-model-qwen2.5-0.5b-instruct-q4_0-7671c0c304e6
@@ -49,7 +49,7 @@ runs:
         --pr "${{ github.event.pull_request.number }}"
         --repo "${{ github.repository }}"
         --output "$RUNNER_TEMP/impactr-artifacts"
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
         name: impactr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
         path: ${{ runner.temp }}/impactr-artifacts
