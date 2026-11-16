@@ -1,0 +1,50 @@
+name: Caphe PR analysis
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: caphe-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: caphe
+        name: Analyze pull request
+        continue-on-error: true
+        uses: andrew-ships-stuff/caphe@7debe1e9c00db22f4566fd03819530f8d05ca830 # v0.1.1
+        with:
+          caphe-version: v0.1.1
+          workflow: caphe:git-security
+          base-sha: ${{ github.event.pull_request.base.sha }}
+          head-sha: ${{ github.event.pull_request.head.sha }}
+          repository: ${{ github.repository }}
+          pull-request: ${{ github.event.pull_request.number }}
+          severity-threshold: high
+          fail-on-new: 'true'
+          max-comments: '5'
+
+      - name: Upload untrusted analysis artifact
+        if: ${{ always() && steps.caphe.outputs.review-artifact != '' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: caphe-pr-review-${{ github.event.pull_request.number }}
+          path: ${{ steps.caphe.outputs.review-artifact }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Caphe policy
+        if: ${{ steps.caphe.outputs.policy-status == 'fail' }}
+        shell: bash
+        run: exit 1
