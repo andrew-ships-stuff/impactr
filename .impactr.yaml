@@ -1,0 +1,27 @@
+version: 1
+git:
+  base: auto
+  comparison: merge-base
+  include_untracked: false
+analysis:
+  languages: [go, typescript, python]
+  exclude: ["vendor/**", "node_modules/**", "**/*.generated.go"]
+  max_depth: 4
+  max_nodes: 250
+  concurrency: 8
+  include_tests: false
+  include_generated: false
+inference:
+  provider: embedded
+  model: auto
+  threads: 4
+  max_memory_mb: 2048
+  timeout_seconds: 120
+  max_output_tokens: 256
+  context_length: 4096
+  send_source: false
+render:
+  views: [architecture, diff, impact]
+  formats: [svg, png, markdown, json]
+  theme: auto
+  max_nodes: 100

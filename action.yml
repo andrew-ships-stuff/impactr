@@ -1,0 +1,56 @@
+name: Impactr
+description: Evidence-backed architecture impact analysis for pull requests
+branding: {icon: git-pull-request, color: orange}
+inputs:
+  provider:
+    description: Inference provider; embedded is CPU-local and cached, none is fastest
+    default: embedded
+  comment:
+    description: Publish when the token has write permission
+    default: "true"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@v5
+      with: {go-version: "1.24.x", cache: false}
+    - name: Build trusted Impactr action code
+      shell: bash
+      run: go -C "${{ github.action_path }}" build -trimpath -ldflags "-s -w" -o "$RUNNER_TEMP/impactr" ./cmd/impactr
+    - name: Cache embedded model
+      if: ${{ inputs.provider == 'embedded' }}
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/impactr/models
+        key: impactr-model-qwen2.5-0.5b-instruct-q4_0-7671c0c304e6
+    - name: Install checksum-pinned embedded model
+      if: ${{ inputs.provider == 'embedded' }}
+      shell: bash
+      run: "$RUNNER_TEMP/impactr" model install || echo "::warning::Model installation failed; deterministic analysis will continue"
+    - name: Analyze pull request
+      shell: bash
+      env:
+        IMPACTR_PROVIDER: ${{ inputs.provider }}
+      run: >-
+        "$RUNNER_TEMP/impactr" analyze
+        --base "${{ github.event.pull_request.base.sha }}"
+        --head "${{ github.event.pull_request.head.sha }}"
+        --output "$RUNNER_TEMP/impactr-artifacts"
+    - name: Add job summary
+      shell: bash
+      run: cat "$RUNNER_TEMP/impactr-artifacts/summary.md" >> "$GITHUB_STEP_SUMMARY"
+    - name: Publish trusted same-repository PR
+      if: ${{ inputs.comment == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: >-
+        "$RUNNER_TEMP/impactr" github comment --existing
+        --pr "${{ github.event.pull_request.number }}"
+        --repo "${{ github.repository }}"
+        --output "$RUNNER_TEMP/impactr-artifacts"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: impactr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+        path: ${{ runner.temp }}/impactr-artifacts
+        if-no-files-found: error
+        retention-days: 14

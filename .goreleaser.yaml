@@ -1,0 +1,26 @@
+version: 2
+project_name: impactr
+builds:
+  - id: impactr
+    main: ./cmd/impactr
+    binary: impactr
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags: [-s, -w, -X main.version={{.Version}}]
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+checksum:
+  name_template: checksums.txt
+brews:
+  - repository:
+      owner: andrew-ships-stuff
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: https://github.com/andrew-ships-stuff/impactr
+    description: See the impact before you merge
+    license: MIT
+changelog:
+  use: github-native
