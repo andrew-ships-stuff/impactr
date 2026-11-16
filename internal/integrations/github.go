@@ -2,9 +2,11 @@ package integrations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -83,50 +85,93 @@ func lastStats(ctx context.Context, r OutputRunner, repo string, pr int) (Stats,
 	return Stats{Nodes: n, Edges: e2, Affected: a}, true
 }
 
+// uploadAsset posts the file to the repository uploads endpoint and returns
+// its durable asset URL. Unlike gh pr comment --attach (which demands a
+// classic repo-scoped token), this works with a GITHUB_TOKEN that has
+// contents: write.
+func uploadAsset(ctx context.Context, r OutputRunner, repo, path string) (string, bool) {
+	if repo == "" {
+		return "", false
+	}
+	out, e := r.Output(ctx, "gh", "api", "--method", "POST",
+		fmt.Sprintf("repos/%s/uploads", repo),
+		"-F", "name="+filepath.Base(path),
+		"-F", "file=@"+path)
+	if e != nil {
+		return "", false
+	}
+	var v struct {
+		AssetURL string `json:"asset_url"`
+	}
+	if json.Unmarshal(out, &v) != nil || v.AssetURL == "" {
+		return "", false
+	}
+	return v.AssetURL, true
+}
+
 func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile, image string) error {
 	if pr < 1 {
 		return fmt.Errorf("invalid pull request number")
 	}
 	mode := "edit"
+	changed := false
 	body, re := os.ReadFile(bodyFile)
 	if re == nil {
 		if next, ok := ParseStats(string(body)); ok {
 			if qr, rok := r.(OutputRunner); rok {
 				if prev, found := lastStats(ctx, qr, repo, pr); found && prev.substantial(next) {
 					mode = "new"
+					body = append([]byte(supersedeNote), body...)
+					changed = true
 				}
 			}
 		}
 	}
+	attach := ""
+	if image != "" {
+		uploaded := false
+		if qr, rok := r.(OutputRunner); rok {
+			if url, ok := uploadAsset(ctx, qr, repo, image); ok {
+				body = []byte(strings.ReplaceAll(string(body), "]("+filepath.Base(image)+")", "]("+url+")"))
+				changed = true
+				uploaded = true
+			}
+		}
+		if !uploaded {
+			attach = image + "#Impactr architecture impact diagram"
+		}
+	}
 	args := []string{"pr", "comment", strconv.Itoa(pr)}
+	bf := bodyFile
 	cleanup := func() error { return nil }
-	switch mode {
-	case "edit":
-		args = append(args, "--body-file", bodyFile, "--edit-last", "--create-if-none")
-	case "new":
+	if changed {
 		tmp, te := os.CreateTemp("", "impactr-comment-*.md")
 		if te != nil {
 			return te
 		}
-		if _, te = tmp.WriteString(supersedeNote + string(body)); te != nil {
+		if _, te = tmp.Write(body); te != nil {
 			tmp.Close()
 			os.Remove(tmp.Name())
 			return te
 		}
 		te = tmp.Close()
-		name := tmp.Name()
-		cleanup = func() error { return os.Remove(name) }
-		args = append(args, "--body-file", name)
+		bf = tmp.Name()
+		cleanup = func() error { return os.Remove(bf) }
+	}
+	if mode == "edit" {
+		args = append(args, "--body-file", bf, "--edit-last", "--create-if-none")
+	} else {
+		args = append(args, "--body-file", bf)
 	}
 	if repo != "" {
 		args = append(args, "--repo", repo)
 	}
-	if image != "" {
-		args = append(args, "--attach", image+"#Impactr architecture impact diagram")
+	if attach != "" {
+		args = append(args, "--attach", attach)
 	}
-	if re := r.Run(ctx, "gh", args...); re != nil {
+	if e := r.Run(ctx, "gh", args...); e != nil {
 		_ = cleanup()
-		return re
+		return e
 	}
 	return cleanup()
 }

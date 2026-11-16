@@ -28,17 +28,23 @@ func (f *fake) Run(_ context.Context, n string, a ...string) error {
 
 type fakeQuery struct {
 	fake
-	out string
+	out    string
+	upload string
 }
 
-func (f *fakeQuery) Output(context.Context, string, ...string) ([]byte, error) {
+func (f *fakeQuery) Output(_ context.Context, _ string, a ...string) ([]byte, error) {
+	for _, v := range a {
+		if strings.Contains(v, "uploads") {
+			return []byte(f.upload), nil
+		}
+	}
 	return []byte(f.out), nil
 }
 
 func writeSummary(t *testing.T, stats string) string {
 	t.Helper()
 	p := filepath.Join(t.TempDir(), "summary.md")
-	body := "<!-- impactr-comment:v1 -->\n<!-- impactr-stats:v1 " + stats + " -->\n## Impactr architecture impact\n"
+	body := "<!-- impactr-comment:v1 -->\n<!-- impactr-stats:v1 " + stats + " -->\n## Impactr architecture impact\n\n![Impact graph](impact.png)\n"
 	if e := os.WriteFile(p, []byte(body), 0600); e != nil {
 		t.Fatal(e)
 	}
@@ -65,8 +71,25 @@ func TestGitHubCommentEditsWhenSimilar(t *testing.T) {
 	if !hasFlag(f.a, "--edit-last") || !hasFlag(f.a, "--create-if-none") {
 		t.Fatalf("expected in-place edit, got %#v", f.a)
 	}
+	if !hasFlag(f.a, "--attach") {
+		t.Fatalf("expected attach fallback when upload unavailable, got %#v", f.a)
+	}
 	if f.a[4] != body {
 		t.Fatalf("expected original body file, got %s", f.a[4])
+	}
+}
+
+func TestGitHubCommentUploadsImageViaAPI(t *testing.T) {
+	f := &fakeQuery{out: "8 7 2\n", upload: `{"asset_url":"https://gh.example/assets/impact.png"}`}
+	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, "impact.png"); e != nil {
+		t.Fatal(e)
+	}
+	if hasFlag(f.a, "--attach") {
+		t.Fatalf("image should be uploaded via api, not --attach: %#v", f.a)
+	}
+	if !strings.Contains(f.body, "](https://gh.example/assets/impact.png)") || strings.Contains(f.body, "](impact.png)") {
+		t.Fatalf("body not rewritten to asset URL: %s", f.body)
 	}
 }
 
