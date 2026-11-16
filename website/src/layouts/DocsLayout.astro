@@ -1,0 +1,63 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import { Search, PanelLeftClose } from '@lucide/astro';
+import { docsNav, url } from '../lib/site';
+const { frontmatter = {}, headings = [] } = Astro.props;
+const path = Astro.url.pathname.endsWith('/') ? Astro.url.pathname : `${Astro.url.pathname}/`;
+const title = `${frontmatter.title ?? 'Documentation'} — Impactr Docs`;
+---
+<BaseLayout title={title} description={frontmatter.description ?? 'Impactr documentation'}>
+  <div class="docs-shell site-shell">
+    <button class="sidebar-toggle" aria-expanded="false" aria-controls="docs-sidebar"><PanelLeftClose size={17}/> Documentation menu</button>
+    <aside id="docs-sidebar" class="docs-sidebar">
+      <button class="search-open"><Search size={16}/> Search documentation <kbd>/</kbd></button>
+      <nav aria-label="Documentation navigation">
+        {docsNav.map(section => <section><h2>{section.group}</h2>{section.items.map(([label, href]) => <a class={path === url(href) ? 'active' : ''} href={url(href)}>{label}</a>)}</section>)}
+      </nav>
+    </aside>
+    <article class="docs-content prose" data-pagefind-body>
+      <div class="docs-kicker">Impactr documentation</div>
+      <slot />
+      <div class="edit-link">Found a documentation issue? <a href="https://github.com/andrew-ships-stuff/impactr/issues/new">Open an issue</a>.</div>
+    </article>
+    <aside class="toc" aria-label="On this page"><h2>On this page</h2>{headings.filter((h: any) => h.depth === 2 || h.depth === 3).map((h: any) => <a class={`depth-${h.depth}`} href={`#${h.slug}`}>{h.text}</a>)}</aside>
+  </div>
+  <dialog class="search-dialog">
+    <form method="dialog"><button aria-label="Close search">×</button></form>
+    <label for="docs-search">Search Impactr docs</label>
+    <input id="docs-search" type="search" placeholder="Try “working tree” or “Ollama”" autocomplete="off" />
+    <div class="search-status" aria-live="polite">Type to search the generated documentation index.</div>
+    <div class="search-results"></div>
+  </dialog>
+</BaseLayout>
+<script>
+  const dialog = document.querySelector<HTMLDialogElement>('.search-dialog');
+  const input = document.querySelector<HTMLInputElement>('#docs-search');
+  const results = document.querySelector<HTMLElement>('.search-results');
+  const status = document.querySelector<HTMLElement>('.search-status');
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const openSearch = () => { dialog?.showModal(); window.setTimeout(() => input?.focus(), 10); };
+  document.querySelector('.search-open')?.addEventListener('click', openSearch);
+  document.addEventListener('keydown', (event) => { if (event.key === '/' && !['INPUT','TEXTAREA'].includes((event.target as HTMLElement).tagName)) { event.preventDefault(); openSearch(); }});
+  document.querySelector('.sidebar-toggle')?.addEventListener('click', (event) => { const button = event.currentTarget as HTMLButtonElement; const sidebar = document.querySelector('.docs-sidebar'); const open = button.getAttribute('aria-expanded') !== 'true'; button.setAttribute('aria-expanded', String(open)); sidebar?.classList.toggle('open', open); });
+  let pagefind: any;
+  input?.addEventListener('input', async () => {
+    const query = input.value.trim(); if (!query) { if(results) results.innerHTML=''; if(status) status.textContent='Type to search the generated documentation index.'; return; }
+    try {
+      pagefind ||= await import(/* @vite-ignore */ `${base}/pagefind/pagefind.js`);
+      const search = await pagefind.search(query); const data = await Promise.all(search.results.slice(0, 8).map((r: any) => r.data()));
+      if (status) status.textContent = `${search.results.length} result${search.results.length === 1 ? '' : 's'}`;
+      if (results) results.innerHTML = data.map((r: any) => `<a href="${r.url}"><strong>${r.meta.title}</strong><span>${r.excerpt}</span></a>`).join('');
+    } catch { if(status) status.textContent='Search is available in the production build.'; }
+  });
+</script>
+<style>
+  .docs-shell { display: grid; grid-template-columns: 230px minmax(0, 720px) 180px; gap: clamp(2rem,4vw,4rem); align-items: start; padding-block: 3rem 6rem; }
+  .docs-sidebar, .toc { position: sticky; top: 92px; max-height: calc(100vh - 110px); overflow-y: auto; } .docs-sidebar nav section { margin: 1.6rem 0; } .docs-sidebar h2, .toc h2 { color: var(--muted); font: 700 .67rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; } .docs-sidebar a, .toc a { display:block;color:var(--muted);text-decoration:none;padding:.42rem 0;font-size:.82rem;line-height:1.35 }.docs-sidebar a:hover,.toc a:hover{color:var(--text)}.docs-sidebar a.active{color:var(--accent);font-weight:700}.toc a.depth-3{padding-left:.8rem;font-size:.75rem}
+  .search-open { width:100%;display:flex;align-items:center;gap:.5rem;border:1px solid var(--line);background:var(--surface);color:var(--muted);padding:.65rem;text-align:left;font-size:.75rem;cursor:pointer }.search-open kbd{margin-left:auto;border:1px solid var(--line);padding:.1rem .35rem;font: .65rem var(--font-mono)}
+  .docs-content { min-width: 0; } .docs-kicker { margin-bottom:.8rem;color:var(--accent);font:700 .7rem var(--font-mono);text-transform:uppercase;letter-spacing:.08em}.edit-link{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);font-size:.8rem}
+  .sidebar-toggle { display:none; width:100%;align-items:center;gap:.5rem;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:.75rem;margin-bottom:1rem; }
+  .search-dialog { width:min(650px,calc(100% - 2rem));padding:1.5rem;border:1px solid var(--line-strong);background:var(--surface-solid);color:var(--text);box-shadow:var(--shadow) }.search-dialog::backdrop{background:rgba(0,0,0,.6)}.search-dialog form{position:absolute;right:1rem;top:.75rem}.search-dialog form button{border:0;background:none;color:var(--muted);font-size:1.5rem;cursor:pointer}.search-dialog label{display:block;font-weight:700;margin-bottom:.8rem}.search-dialog input{width:100%;border:1px solid var(--line-strong);background:var(--bg);color:var(--text);padding:.85rem}.search-status{margin:.8rem 0;color:var(--muted);font-size:.75rem}.search-results a{display:block;border-top:1px solid var(--line);padding:.8rem;text-decoration:none}.search-results a:hover{background:var(--bg-soft)}.search-results strong,.search-results span{display:block}.search-results span{margin-top:.3rem;color:var(--muted);font-size:.8rem}
+  @media(max-width:1050px){.docs-shell{grid-template-columns:210px minmax(0,1fr)}.toc{display:none}}
+  @media(max-width:720px){.docs-shell{display:block;padding-top:1.5rem}.sidebar-toggle{display:flex}.docs-sidebar{display:none;position:static;max-height:none;margin-bottom:2rem}.docs-sidebar.open{display:block}}
+</style>

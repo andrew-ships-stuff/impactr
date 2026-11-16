@@ -1,0 +1,59 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Getting started
+description: Install Impactr and analyze an architecture change locally.
+---
+# Getting started
+
+This guide runs deterministic analysis first, then shows how to add the optional embedded model.
+
+## 1. Install the CLI
+
+```bash
+brew install andrew-ships-stuff/tap/impactr
+```
+
+Until the first packaged release is available, the repository also documents:
+
+```bash
+go install github.com/andrew-ships-stuff/impactr/cmd/impactr@latest
+```
+
+## 2. Analyze your branch
+
+From a Git repository with enough history to resolve its default branch:
+
+```bash
+impactr analyze --no-ai
+```
+
+By default, Impactr discovers `origin/HEAD`, then conventional `main` or `master` refs, and compares the merge base to `HEAD`. It does not silently choose an unrelated commit if discovery fails.
+
+## 3. Inspect the artifacts
+
+Impactr writes `.impactr/analysis.json`, before/after/diff graph JSON, `impact.svg`, `impact.png`, Mermaid, Markdown, and the versioned report. The terminal is a concise view; machine-readable output remains complete.
+
+```bash
+open .impactr/impact.svg
+impactr render --format mermaid > impact.mmd
+```
+
+## 4. Add local explanation
+
+Model weights are not installed by Homebrew and are never downloaded implicitly.
+
+```bash
+impactr model install
+impactr analyze
+```
+
+The current registry pins Qwen2.5-0.5B-Instruct Q4_0, displays its Apache-2.0 license, verifies SHA-256, and atomically caches the file.
+
+## Useful next comparisons
+
+```bash
+impactr analyze --working-tree
+impactr analyze --staged --no-ai
+impactr analyze --base origin/main --head HEAD
+impactr analyze --view impact
+```

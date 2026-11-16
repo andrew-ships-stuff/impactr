@@ -1,0 +1,33 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Git hooks
+description: Run deterministic analysis before commits or pushes.
+---
+# Git hooks
+
+Impactr can chain into existing pre-commit and pre-push hooks.
+
+## Install
+
+```bash
+impactr hook install --type pre-commit
+impactr hook install --type pre-push
+impactr hook install --type pre-push --blocking
+```
+
+Hooks run deterministic analysis without model downloads and are nonblocking by default. `--blocking` makes deterministic analysis failure fail the Git operation; LLM wording is not a quality gate.
+
+## Existing hooks
+
+Impactr preserves an existing executable hook as `<hook>.impactr-original`, installs a small chaining wrapper, and restores the original on uninstall. It refuses ambiguous backup states. An existing hook's failure remains blocking.
+
+## Hook comparison behavior
+
+The pre-commit hook analyzes the index. Pre-push uses the configured branch comparison.
+
+## Uninstall
+
+```bash
+impactr hook uninstall --type pre-commit
+impactr hook uninstall --type pre-push
+```

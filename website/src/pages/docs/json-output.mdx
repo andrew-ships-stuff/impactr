@@ -1,0 +1,43 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: JSON output
+description: Consume Impactr's versioned graph and analysis artifacts.
+---
+# JSON output
+
+Impactr writes machine-readable artifacts alongside visual output.
+
+## Terminal command output
+
+```bash
+impactr analyze --format json > report.json
+```
+
+## Artifact bundle
+
+The `.impactr/` directory includes:
+
+- `analysis.json` and `report.json` — complete versioned report envelopes.
+- `graph-before.json` and `graph-after.json` — canonical snapshots.
+- `graph-diff.json` — classified node and edge changes.
+- `impact.svg` and `impact.png` — reviewable overview diagrams.
+- `summary.md` — code-review summary with versioned markers.
+- Mermaid and additional cluster images produced by the current renderer.
+
+## Evidence identities
+
+Resolved facts carry source evidence. Node and edge identities are stable across line movement because line numbers are not part of the ID hash. Unresolved dynamic syntax remains explicitly unresolved rather than guessed.
+
+## Schema contract
+
+The current `schema_version` is `1.0.0`. Consumers may accept additive 1.x fields but should reject unknown major versions. Do not infer missing facts from natural-language explanation; use graph fields as the source of truth.
+
+## Untrusted CI artifacts
+
+Before privileged publishing, run:
+
+```bash
+impactr validate-artifact --dir downloaded-impactr-artifact
+```
+
+Transferred files remain untrusted data. Never source, execute, or interpolate them into shell commands.

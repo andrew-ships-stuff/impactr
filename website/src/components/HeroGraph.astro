@@ -1,0 +1,30 @@
+<figure class="hero-graph panel" aria-labelledby="hero-graph-title">
+  <figcaption><span id="hero-graph-title">Illustrative architecture change</span><span class="live-label"><i></i> after snapshot</span></figcaption>
+  <div class="graph-canvas" tabindex="0" aria-label="Scrollable architecture diagram">
+    <svg viewBox="0 0 720 470" role="img" aria-label="Architecture graph showing Session Validator and Redis added between authentication middleware, user service, and database">
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--unchanged)"/></marker><marker id="arrow-add" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="var(--added)"/></marker></defs>
+      <g class="edges" fill="none" stroke-width="2"><path d="M360 94V130"/><path d="M360 186V220" class="added"/><path d="M330 276 245 320" class="added"/><path d="M390 276 478 320" class="added"/><path d="M245 376v35"/></g>
+      <g class="node neutral" transform="translate(250 42)"><rect width="220" height="52" rx="6"/><circle cx="24" cy="26" r="6"/><text x="43" y="31">API Gateway</text></g>
+      <g class="node modified" transform="translate(250 134)"><rect width="220" height="52" rx="6"/><path d="M18 21h12v12H18z"/><text x="43" y="31">Auth Middleware</text><text class="status" x="198" y="31">~</text></g>
+      <g class="node added enter" transform="translate(250 224)"><rect width="220" height="52" rx="6"/><path d="M18 26h12M24 20v12"/><text x="43" y="31">Session Validator</text><text class="status" x="198" y="31">+</text></g>
+      <g class="node neutral" transform="translate(135 324)"><rect width="220" height="52" rx="6"/><circle cx="24" cy="26" r="6"/><text x="43" y="31">User Service</text></g>
+      <g class="node added enter delay" transform="translate(370 324)"><rect width="215" height="52" rx="6"/><path d="M18 26h12M24 20v12"/><text x="43" y="31">Redis</text><text class="status" x="193" y="31">+</text></g>
+      <g class="node neutral" transform="translate(135 411)"><rect width="220" height="52" rx="6"/><circle cx="24" cy="26" r="6"/><text x="43" y="31">Database</text></g>
+    </svg>
+  </div>
+  <div class="graph-key"><span><i class="dot added-dot"></i><b>2 added</b></span><span><i class="dot modified-dot"></i><b>1 modified</b></span><span><i class="line"></i>dependency</span></div>
+</figure>
+<style>
+  .hero-graph { margin: 0; overflow: hidden; border-radius: 2px; background: color-mix(in srgb, var(--surface-solid) 88%, transparent); }
+  figcaption { display: flex; justify-content: space-between; gap: 1rem; padding: .9rem 1rem; border-bottom: 1px solid var(--line); color: var(--muted); font: 700 .68rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; }
+  .live-label { display: inline-flex; align-items: center; gap: .45rem; color: var(--added); } .live-label i { width: 6px; height: 6px; border-radius: 999px; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 15%, transparent); }
+  .graph-canvas { padding: 1rem; background-image: radial-gradient(var(--line) .7px, transparent .7px); background-size: 16px 16px; }
+  svg { width: 100%; height: auto; display: block; }
+  .edges path { stroke: var(--unchanged); marker-end: url(#arrow); } .edges .added { stroke: var(--added); stroke-dasharray: 5 5; marker-end: url(#arrow-add); animation: dash 9s linear infinite; }
+  .node rect { fill: var(--surface-solid); stroke: var(--line-strong); } .node text { fill: var(--text); font: 600 15px var(--font-sans); } .node circle { fill: var(--unchanged); } .node.status { font-family: var(--font-mono); }
+  .node.added rect { stroke: var(--added); fill: color-mix(in srgb, var(--added) 7%, var(--surface-solid)); } .node.added path, .node.added .status { stroke: var(--added); fill: var(--added); } .node.modified rect { stroke: var(--modified); } .node.modified path { fill: var(--modified); } .node.modified .status { fill: var(--modified); }
+  .graph-key { display: flex; gap: 1.2rem; flex-wrap: wrap; padding: .9rem 1rem; border-top: 1px solid var(--line); color: var(--muted); font: .67rem var(--font-mono); } .graph-key span { display: flex; align-items: center; gap: .4rem; } .graph-key b { color: var(--text); font-weight: 650; } .dot { width: 7px; height: 7px; border-radius: 50%; } .added-dot { background: var(--added); } .modified-dot { background: var(--modified); } .line { width: 18px; border-top: 1px solid var(--unchanged); }
+  @keyframes dash { to { stroke-dashoffset: -100; } }
+  @media (prefers-reduced-motion: no-preference) { .enter { animation: enter 5s ease-in-out infinite alternate; } .delay { animation-delay: .5s; } @keyframes enter { 0%,15% { opacity: .3; transform: translate(250px,218px); } 35%,100% { opacity: 1; transform: translate(250px,224px); } } .delay { animation-name: enter2; } @keyframes enter2 { 0%,15% { opacity: .3; transform: translate(370px,318px); } 35%,100% { opacity: 1; transform: translate(370px,324px); } } }
+  @media (max-width: 560px) { .graph-canvas { overflow-x: auto; } svg { min-width: 520px; } }
+</style>

@@ -12,4 +12,6 @@ Impactr sends compact JSON containing changed nodes, changed edges, and bounded 
 
 The default model registry pins Qwen2.5-0.5B-Instruct Q4_0 to SHA-256 `7671c0c304e6ce5a7fc577bcb12aba01e2c155cc2efd29b2213c95b18edaf6ed`. Downloads use a partial file and atomic rename after verification. The manager supports offline reuse.
 
+Qwen2.5-0.5B-Instruct is Apache-2.0 licensed; that license requires notices and compliance, not an interactive click-through. Locally, the explicit `impactr model install` command is the consent boundary. In GitHub Actions, selecting `provider: embedded` is the equivalent non-interactive choice, and the verified model is cached automatically. Homebrew installation and deterministic analysis never download weights implicitly.
+
 Generated output is JSON and each claim must cite existing node or edge IDs. Unsupported claims are removed. This is validation against evidence identity, not a proof that natural-language wording is perfect; reviewers should follow the linked facts.

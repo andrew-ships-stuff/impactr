@@ -1,0 +1,53 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Configuration
+description: Configure Git comparisons, analysis limits, inference, rendering, and integrations.
+---
+# Configuration
+
+Precedence is CLI flags, `IMPACTR_*` environment variables, project `.impactr.yaml`, user config, then built-in defaults. User config lives at `$XDG_CONFIG_HOME/impactr/config.yaml` or the operating-system equivalent.
+
+## Complete project example
+
+```yaml
+version: 1
+git:
+  base: auto
+  comparison: merge-base
+  include_untracked: false
+analysis:
+  languages: [go, typescript, python]
+  exclude: ["vendor/**", "node_modules/**", "**/*.generated.go"]
+  max_depth: 4
+  max_nodes: 250
+  concurrency: 8
+  include_tests: false
+  include_generated: false
+inference:
+  provider: embedded
+  model: auto
+  threads: 4
+  max_memory_mb: 2048
+  timeout_seconds: 120
+  max_output_tokens: 256
+  context_length: 4096
+  send_source: false
+render:
+  views: [architecture, diff, impact]
+  formats: [svg, png, markdown, json]
+  theme: auto
+  max_nodes: 100
+```
+
+Unknown fields and unsupported schema versions are rejected. No configuration field executes commands.
+
+## Environment variables
+
+Implemented keys are `IMPACTR_PROVIDER`, `IMPACTR_MODEL`, `IMPACTR_ENDPOINT`, `IMPACTR_API_KEY`, and `IMPACTR_MODEL_CACHE`. Credentials are read from the environment and are never logged.
+
+## Comparison modes
+
+- `merge-base` compares the merge base of base/head to head and is the PR default.
+- `exact` compares the exact endpoints.
+- `--staged` compares `HEAD` to the index.
+- `--working-tree` compares `HEAD` to the current tree.

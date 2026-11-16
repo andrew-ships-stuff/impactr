@@ -1,0 +1,42 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: GitLab CI
+description: Analyze GitLab merge requests and publish updateable notes.
+---
+# GitLab CI
+
+The checked-in `.gitlab/impactr.gitlab-ci.yml` uses exact merge-request endpoints and the same engine as local and GitHub workflows.
+
+## Current job
+
+```yaml
+impactr:
+  stage: test
+  image: golang:1.24-bookworm
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  variables:
+    IMPACTR_PROVIDER: "none"
+  before_script:
+    - go install github.com/andrew-ships-stuff/impactr/cmd/impactr@${IMPACTR_VERSION:-latest}
+  script:
+    - impactr analyze --base "$CI_MERGE_REQUEST_DIFF_BASE_SHA" --head "$CI_COMMIT_SHA" --output .impactr
+    - |
+      if [ -n "$GITLAB_TOKEN" ]; then
+        impactr gitlab comment --mr "$CI_MERGE_REQUEST_IID" --project "$CI_PROJECT_ID" --output .impactr
+      fi
+  artifacts:
+    when: always
+    paths: [.impactr/]
+    expire_in: 14 days
+```
+
+## Authentication and updates
+
+Set a masked, protected `GITLAB_TOKEN` with the minimum API access needed for project uploads and merge-request notes. Without it, analysis and artifacts still succeed. The integration uploads PNGs, finds the versioned note marker, and updates that note instead of duplicating it.
+
+## Fork trust boundary
+
+Do not expose protected variables to untrusted fork pipelines. Use artifact-only analysis and a separately trusted publisher that validates the bundle and pipeline identity.
+
+Project-upload media visibility depends on GitLab instance settings.

@@ -1,0 +1,46 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: GitHub Actions
+description: Analyze pull requests and publish Impactr artifacts with secure trust boundaries.
+---
+# GitHub Actions
+
+The repository is a composite Action. It builds the trusted action checkout, analyzes base/head SHAs, writes a job summary, and uploads the complete artifact bundle.
+
+## Same-repository pull requests
+
+```yaml
+name: Impactr
+on: [pull_request]
+permissions:
+  contents: write # required by the current durable diagram fallback
+  pull-requests: write
+jobs:
+  impactr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: andrew-ships-stuff/impactr@v1
+```
+
+The current publisher first tries the uploads endpoint. With `GITHUB_TOKEN`, the fallback commits `impact.png` to a dedicated `impactr-assets` branch and references its raw URL, which is why the publishing context needs `contents: write`. Artifact-only analysis needs only `contents: read`.
+
+## Fork pull requests
+
+Fork PR tokens are read-only and receive no secrets. The composite Action deliberately skips commenting but still analyzes and uploads artifacts.
+
+For privileged publishing, use a separate default-branch `workflow_run` that:
+
+1. Downloads only the expected Impactr artifact.
+2. Caps archive and extracted size and rejects traversal and symlinks.
+3. Runs `impactr validate-artifact --dir <dir>`.
+4. Verifies repository and PR/head identity through the GitHub API, not artifact fields.
+5. Publishes with `impactr github comment --existing` without checking out or executing fork code.
+
+Never use `pull_request_target` to check out and run untrusted PR code.
+
+## Comment update behavior
+
+Comments carry versioned markers and machine-readable counts. Impactr edits the latest marked comment in place. If a metric more than doubles in either direction, with a slack of five, it posts a new superseding comment so a major impact change is not silently overwritten.

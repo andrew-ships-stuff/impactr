@@ -1,0 +1,35 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Architecture
+description: Understand Impactr's deterministic analysis pipeline and graph identity model.
+---
+# Architecture
+
+Impactr has one dependency direction: adapters feed the deterministic engine; renderers and inference consume its versioned facts.
+
+```text
+Git snapshots → language analyzers → canonical graph → graph diff → blast radius
+                                             │             │
+                                             ├→ renderers   └→ inference
+                                             └→ hooks / CI adapters
+```
+
+## Git snapshots
+
+`internal/git` resolves exact or merge-base comparisons and reads commits with `git archive`; it never checks out a revision. The index uses `git checkout-index` in an isolated temporary directory.
+
+## Language analysis
+
+Go analysis resolves module/package/type/function/method declarations, imports, and statically named direct calls with file-and-line evidence. JavaScript/TypeScript and Python currently provide syntax-level modules, imports, and declarations with an explicit limitation warning.
+
+## Stable graph identity
+
+Node IDs hash language, canonical package, qualified symbol, and kind — not line numbers. Edge IDs hash endpoints and relationship kind. Function-body hashes classify implementation changes independently from relationships.
+
+## Rendering and inference
+
+The renderer uses an ID-derived deterministic grid so unchanged identities tend to retain positions. Large visual views are capped while machine-readable graph data remains complete. Inference receives a compact evidence projection and cannot replace the graph.
+
+## Schema compatibility
+
+JSON envelopes carry `schema_version: 1.0.0`. Additive fields are allowed within 1.x. Consumers must reject unknown major versions.

@@ -49,7 +49,7 @@ func TestDeterministicBrief(t *testing.T) {
 	if !b.Fallback || b.Provider != "deterministic" {
 		t.Fatalf("%#v", b)
 	}
-	if !strings.Contains(b.Headline, "3 symbols changed across 2 packages") || !strings.Contains(b.Headline, "session") {
+	if !strings.Contains(b.Headline, "3 symbols changed across 2 local packages") || !strings.Contains(b.Headline, "Review session first") {
 		t.Fatalf("headline: %s", b.Headline)
 	}
 	if len(b.Clusters) != 2 || b.Clusters[0].Title == "" {
@@ -58,8 +58,19 @@ func TestDeterministicBrief(t *testing.T) {
 }
 
 func TestValidateBriefKeepsValidTitles(t *testing.T) {
-	b, e := ValidateBrief(Brief{Headline: "ok", Clusters: []ClusterBrief{{Package: "handler", Title: "serve path"}}}, briefReq())
+	b, e := ValidateBrief(Brief{Headline: "handler serves requests", Clusters: []ClusterBrief{{Package: "handler", Title: "serve path"}}}, briefReq())
 	if e != nil || len(b.Clusters) != 1 {
 		t.Fatalf("%#v %v", b, e)
+	}
+}
+
+func TestValidateBriefRejectsUngroundedOrUnreadableHeadline(t *testing.T) {
+	for _, headline := range []string{
+		"unrelated system changes",
+		"内部渲染, session, handler, added: 3, removed: 2, modified: 4, affected: 8, blast: 9",
+	} {
+		if _, err := ValidateBrief(Brief{Headline: headline}, briefReq()); err == nil {
+			t.Fatalf("expected rejection for %q", headline)
+		}
 	}
 }

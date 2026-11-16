@@ -12,7 +12,7 @@ func fixture() (Diff, Impact) {
 	edges := []Edge{
 		{ID: "e1", From: "h", To: "v", Kind: "calls"},
 		{ID: "e2", From: "m", To: "h", Kind: "calls"},
-		{ID: "e3", From: "r", To: "v", Kind: "calls"},
+		{ID: "e3", From: "r", To: "h", Kind: "calls"},
 	}
 	d := Diff{Nodes: nodes, Edges: edges}
 	i := Impact{Changed: []string{"v", "m"}, Affected: []Affected{{NodeID: "h", Depth: 1}, {NodeID: "r", Depth: 2}}}
@@ -27,6 +27,9 @@ func TestPackageViewsRanked(t *testing.T) {
 	}
 	if v[0].Package != "session" || v[0].Added != 1 {
 		t.Fatalf("expected session first: %#v", v[0])
+	}
+	if v[0].Blast != 2 {
+		t.Fatalf("expected transitive blast of 2, got %#v", v[0])
 	}
 	for _, x := range v {
 		if x.Package == "handler" && x.Affected != 1 {

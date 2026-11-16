@@ -1,0 +1,75 @@
+---
+const nodes = [
+  { id:'api', label:'API Gateway', x:310, y:30, state:'unchanged', evidence:'cmd/gateway/main.go:42', role:'Routes incoming requests' },
+  { id:'auth', label:'Auth Middleware', x:310, y:125, state:'modified', evidence:'internal/auth/middleware.go:77', role:'Modified: forwards verified sessions' },
+  { id:'session', label:'Session Validator', x:310, y:220, state:'added', evidence:'internal/session/validator.go:18', role:'Added: validates session tokens' },
+  { id:'user', label:'User Service', x:135, y:325, state:'affected', evidence:'internal/user/service.go:31', role:'Potentially affected caller' },
+  { id:'redis', label:'Redis', x:485, y:325, state:'added', evidence:'internal/session/redis.go:12', role:'Added: session lookup dependency' },
+  { id:'db', label:'Database', x:135, y:430, state:'affected', evidence:'internal/user/store.go:55', role:'Potentially affected downstream store' },
+];
+---
+<section class="explorer panel" data-graph-explorer>
+  <div class="explorer-head">
+    <div><span class="eyebrow">Interactive fixture</span><h3>Session validation change</h3><p>Deterministic example data — no repository is analyzed in your browser.</p></div>
+    <div class="view-tabs" role="tablist" aria-label="Graph view">
+      <button role="tab" aria-selected="true" data-view="architecture">Architecture</button><button role="tab" aria-selected="false" data-view="diff">Diff</button><button role="tab" aria-selected="false" data-view="impact">Impact radius</button>
+    </div>
+  </div>
+  <div class="toolbar"><div class="state-toggle"><button data-state="before">Before</button><button class="active" data-state="after">After</button></div><button class="reset" data-reset>Reset view</button></div>
+  <div class="explorer-body">
+    <div class="graph-wrap">
+      <svg viewBox="0 0 760 520" role="group" aria-labelledby="demo-title demo-desc">
+        <title id="demo-title">Interactive Impactr architecture fixture</title><desc id="demo-desc">Select a node for source evidence. Use the tabs to view architecture, diff, or blast radius.</desc>
+        <defs><marker id="demo-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0 0 10 5 0 10z"/></marker></defs>
+        <g class="demo-edges"><path data-edge="base" d="M380 86v39"/><path data-edge="new" d="M380 181v39"/><path data-edge="new" d="M350 276 245 325"/><path data-edge="new" d="M410 276 515 325"/><path data-edge="base" d="M205 381v49"/><path data-edge="removed" d="M380 181 245 325"/></g>
+        {nodes.map((node) => <g class={`demo-node ${node.state}`} data-node={node.id} data-state={node.state} data-label={node.label} data-evidence={node.evidence} data-role={node.role} transform={`translate(${node.x - 105} ${node.y})`} tabindex="0" role="button" aria-label={`${node.label}, ${node.role}`}><rect width="210" height="56" rx="5"/><circle cx="25" cy="28" r="7"/><text x="45" y="34">{node.label}</text><text class="node-mark" x="186" y="34">{node.state === 'added' ? '+' : node.state === 'modified' ? '~' : ''}</text></g>)}
+      </svg>
+      <div class="mobile-node-list" aria-label="Graph components">{nodes.map((n) => <button data-mobile-node={n.id}><span>{n.label}</span><small>{n.role}</small></button>)}</div>
+    </div>
+    <aside class="inspector" aria-live="polite"><span class="eyebrow">Node evidence</span><h4 data-inspect-label>Session Validator</h4><p data-inspect-role>Added: validates session tokens</p><dl><dt>State</dt><dd data-inspect-state>Added</dd><dt>Evidence</dt><dd><code data-inspect-evidence>internal/session/validator.go:18</code></dd><dt>Relationship</dt><dd data-inspect-edge>auth middleware → validator</dd></dl><p class="note">Affected nodes indicate graph reachability, not guaranteed runtime failure.</p></aside>
+  </div>
+  <div class="legend"><span><i class="unchanged"></i>Unchanged</span><span><i class="added"></i>Added</span><span><i class="modified"></i>Modified</span><span><i class="removed"></i>Removed edge</span><span><i class="affected"></i>Potentially affected</span></div>
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-graph-explorer]').forEach((root) => {
+    const setView = (view: string) => { root.dataset.view = view; root.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === view))); };
+    const selectNode = (id: string) => {
+      const node = root.querySelector<SVGGElement>(`[data-node="${id}"]`); if (!node) return;
+      root.querySelectorAll('[data-node]').forEach(n => n.classList.toggle('selected', n === node));
+      root.querySelector<HTMLElement>('[data-inspect-label]')!.textContent = node.dataset.label ?? '';
+      root.querySelector<HTMLElement>('[data-inspect-role]')!.textContent = node.dataset.role ?? '';
+      root.querySelector<HTMLElement>('[data-inspect-state]')!.textContent = (node.dataset.state ?? '').replace(/^./, c => c.toUpperCase());
+      root.querySelector<HTMLElement>('[data-inspect-evidence]')!.textContent = node.dataset.evidence ?? '';
+      root.querySelector<HTMLElement>('[data-inspect-edge]')!.textContent = id === 'session' ? 'auth middleware → validator' : 'See highlighted graph path';
+    };
+    root.querySelectorAll<HTMLButtonElement>('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view ?? 'architecture')));
+    root.querySelectorAll<SVGGElement>('[data-node]').forEach(n => { n.addEventListener('click', () => selectNode(n.dataset.node!)); n.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectNode(n.dataset.node!); }}); });
+    root.querySelectorAll<HTMLButtonElement>('[data-mobile-node]').forEach(b => b.addEventListener('click', () => selectNode(b.dataset.mobileNode!)));
+    root.querySelectorAll<HTMLButtonElement>('[data-state]').forEach(b => b.addEventListener('click', () => { root.dataset.snapshot = b.dataset.state; root.querySelectorAll('[data-state]').forEach(x => x.classList.toggle('active', x === b)); }));
+    root.querySelector<HTMLButtonElement>('[data-reset]')?.addEventListener('click', () => { root.dataset.snapshot = 'after'; setView('architecture'); selectNode('session'); root.querySelectorAll('[data-state]').forEach(x => x.classList.toggle('active', (x as HTMLElement).dataset.state === 'after')); });
+    selectNode('session'); setView('architecture');
+  });
+</script>
+<style>
+  .explorer { overflow: hidden; border-radius: 2px; }
+  .explorer-head { display: flex; align-items: end; justify-content: space-between; gap: 2rem; padding: 1.5rem; border-bottom: 1px solid var(--line); }
+  h3 { margin: .35rem 0; font-size: 1.65rem; letter-spacing: -.03em; } .explorer-head p { margin: 0; color: var(--muted); font-size: .88rem; }
+  .view-tabs { display: flex; padding: 3px; border: 1px solid var(--line); background: var(--bg-soft); }
+  .view-tabs button, .state-toggle button, .reset { border: 0; color: var(--muted); background: transparent; padding: .65rem .8rem; cursor: pointer; font-size: .76rem; font-weight: 700; }
+  .view-tabs button[aria-selected="true"], .state-toggle button.active { background: var(--surface-solid); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+  .toolbar { display: flex; justify-content: space-between; padding: .65rem 1rem; border-bottom: 1px solid var(--line); } .state-toggle { display: flex; border: 1px solid var(--line); padding: 2px; } .reset { border: 1px solid var(--line); }
+  .explorer-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; min-height: 520px; }
+  .graph-wrap { min-width: 0; background-image: radial-gradient(var(--line) .7px, transparent .7px); background-size: 18px 18px; }
+  svg { width: 100%; height: 520px; display: block; }
+  .demo-edges { fill: none; stroke: var(--unchanged); stroke-width: 2; marker-end: url(#demo-arrow); } .demo-edges marker path { fill: var(--unchanged); } [data-edge="new"] { stroke: var(--added); } [data-edge="removed"] { display: none; stroke: var(--removed); stroke-dasharray: 7 5; }
+  .demo-node { cursor: pointer; } .demo-node rect { fill: var(--surface-solid); stroke: var(--line-strong); stroke-width: 1.5; transition: .2s; } .demo-node circle { fill: var(--unchanged); } .demo-node text { fill: var(--text); font: 600 14px var(--font-sans); pointer-events: none; } .node-mark { font-family: var(--font-mono)!important; }
+  .demo-node.added rect { stroke: var(--added); } .demo-node.added circle, .demo-node.added .node-mark { fill: var(--added); } .demo-node.modified rect { stroke: var(--modified); } .demo-node.modified circle, .demo-node.modified .node-mark { fill: var(--modified); } .demo-node.selected rect { stroke-width: 3; filter: drop-shadow(0 5px 12px color-mix(in srgb, var(--accent) 18%, transparent)); }
+  [data-view="diff"] ~ * {} .explorer[data-view="diff"] .demo-node.unchanged { opacity: .35; } .explorer[data-view="diff"] [data-edge="removed"] { display: block; } .explorer[data-view="diff"] [data-edge="base"] { opacity: .25; }
+  .explorer[data-view="impact"] .demo-node:not(.affected):not(.modified):not(.added) { opacity: .3; } .explorer[data-view="impact"] .demo-node.affected rect { stroke: var(--accent); stroke-dasharray: 5 3; } .explorer[data-view="impact"] .demo-node.affected circle { fill: var(--accent); }
+  .explorer[data-snapshot="before"] .demo-node.added, .explorer[data-snapshot="before"] [data-edge="new"] { display: none; } .explorer[data-snapshot="before"] [data-edge="removed"] { display: block; stroke: var(--unchanged); stroke-dasharray: none; } .explorer[data-snapshot="before"] .demo-node.modified rect { stroke: var(--line-strong); }
+  .inspector { border-left: 1px solid var(--line); background: var(--bg-soft); padding: 1.5rem; } .inspector h4 { margin: .8rem 0 .4rem; font-size: 1.25rem; } .inspector > p { color: var(--muted); line-height: 1.5; } dl { margin: 1.5rem 0; } dt { color: var(--muted); margin-top: 1rem; font: 700 .67rem var(--font-mono); text-transform: uppercase; letter-spacing: .08em; } dd { margin: .25rem 0; font-size: .85rem; } dd code { overflow-wrap: anywhere; color: var(--accent); font: .75rem var(--font-mono); } .note { border-top: 1px solid var(--line); padding-top: 1rem; font-size: .75rem; }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; padding: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font: .68rem var(--font-mono); } .legend span { display: flex; align-items: center; gap: .4rem; } .legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--unchanged); } .legend .added { background: var(--added); } .legend .modified { background: var(--modified); } .legend .removed { background: var(--removed); } .legend .affected { background: var(--accent); }
+  .mobile-node-list { display: none; }
+  @media (max-width: 840px) { .explorer-head { align-items: stretch; flex-direction: column; } .view-tabs { overflow-x: auto; } .explorer-body { grid-template-columns: 1fr; } .inspector { border-left: 0; border-top: 1px solid var(--line); } }
+  @media (max-width: 560px) { svg { display: none; } .mobile-node-list { display: grid; padding: 1rem; gap: .6rem; } .mobile-node-list button { text-align: left; border: 1px solid var(--line); background: var(--surface-solid); color: var(--text); padding: .8rem; } .mobile-node-list span, .mobile-node-list small { display: block; } .mobile-node-list small { margin-top: .25rem; color: var(--muted); } .toolbar { padding: .6rem; } .view-tabs button { white-space: nowrap; } }
+</style>

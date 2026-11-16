@@ -1,0 +1,37 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Documentation
+description: Install, configure, and integrate Impactr into local and CI workflows.
+---
+# Impactr documentation
+
+Impactr compares Git states, builds evidence-backed architecture graphs, calculates a bounded blast radius, renders reviewable artifacts, and can explain those facts with a CPU-only embedded model.
+
+Use this documentation to get from installation to a local analysis, then connect the same deterministic engine to Git hooks, GitHub Actions, or GitLab CI.
+
+## Start with a local analysis
+
+```bash
+brew install andrew-ships-stuff/tap/impactr
+cd your-repository
+impactr analyze --no-ai
+```
+
+The command compares your branch against the merge base of the discovered default branch. Artifacts are written to `.impactr/`.
+
+## Choose a path
+
+| Goal | Read next |
+| --- | --- |
+| Install and run the first comparison | [Getting started](/impactr/docs/getting-started/) |
+| Understand every command and flag | [CLI reference](/impactr/docs/cli/) |
+| Add a pre-push or pre-commit check | [Git hooks](/impactr/docs/git-hooks/) |
+| Analyze pull requests safely | [GitHub Actions](/impactr/docs/github-actions/) |
+| Publish merge request notes | [GitLab CI](/impactr/docs/gitlab-ci/) |
+| Use the versioned graph programmatically | [JSON output](/impactr/docs/json-output/) |
+
+## The reliability contract
+
+Impactr treats the deterministic graph as the source of truth. Inference receives compact changed facts and bounded affected-node IDs, not full repository files. Claims without valid graph evidence IDs are discarded. Provider failure does not invalidate deterministic analysis.
+
+> Affected means reachable through configured dependency relationships. It does not mean a runtime failure is guaranteed.

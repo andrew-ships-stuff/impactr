@@ -14,9 +14,15 @@ import (
 // the qualified-name prefix.
 func PackageName(n Node) string {
 	if n.Kind == "external_dependency" && n.Name != "" {
+		if n.QualifiedName != "" {
+			return n.QualifiedName
+		}
 		return n.Name
 	}
 	if p := n.Location.Path; p != "" {
+		if n.Kind == "package" || n.Kind == "module" {
+			return filepath.ToSlash(p)
+		}
 		if d := filepath.Dir(p); d != "." && d != "/" {
 			return d
 		}
@@ -69,7 +75,12 @@ func PackageViews(d Diff, impact Impact) []PackageView {
 	}
 	callers := make(map[string][]string)
 	for _, e := range d.Edges {
-		callers[e.To] = append(callers[e.To], e.From)
+		if e.Change != Removed {
+			callers[e.To] = append(callers[e.To], e.From)
+		}
+	}
+	for id := range callers {
+		sort.Strings(callers[id])
 	}
 	for id := range changed {
 		n := byID[id]
@@ -84,20 +95,24 @@ func PackageViews(d Diff, impact Impact) []PackageView {
 		}
 		v.NodeIDs = append(v.NodeIDs, id)
 	}
+	allowed := map[string]bool{}
+	for _, a := range impact.Affected {
+		allowed[a.NodeID] = true
+	}
 	for _, a := range impact.Affected {
 		n, ok := byID[a.NodeID]
 		if !ok {
 			continue
 		}
 		view(PackageName(n)).Affected++
-		for id := range changed {
-			for _, c := range callers[id] {
-				if c == a.NodeID {
-					view(PackageName(byID[id])).Blast++
-					break
-				}
-			}
-		}
+	}
+	changedByPackage := map[string][]string{}
+	for id := range changed {
+		p := PackageName(byID[id])
+		changedByPackage[p] = append(changedByPackage[p], id)
+	}
+	for p, roots := range changedByPackage {
+		view(p).Blast = len(reachableCallers(roots, callers, allowed))
 	}
 	out := make([]PackageView, 0, len(views))
 	for _, v := range views {
@@ -169,22 +184,11 @@ func Clusters(d Diff, impact Impact, maxClusters, maxNodes int) []Cluster {
 	for p := range pkgs {
 		names = append(names, p)
 	}
-	reach := func(p string) int {
-		m := map[string]bool{}
-		for _, id := range pkgs[p] {
-			m[id] = true
-		}
-		count := 0
-		for _, a := range impact.Affected {
-			if _, ok := byID[a.NodeID]; !ok {
-				continue
-			}
-			if PackageName(byID[a.NodeID]) == p || calledByAny(m, a.NodeID, callersOf) {
-				count++
-			}
-		}
-		return count
+	allowed := map[string]bool{}
+	for _, a := range impact.Affected {
+		allowed[a.NodeID] = true
 	}
+	reach := func(p string) int { return len(reachableCallers(pkgs[p], callersOf, allowed)) }
 	sort.Slice(names, func(i, j int) bool {
 		si := 2*len(pkgs[names[i]]) + reach(names[i])
 		sj := 2*len(pkgs[names[j]]) + reach(names[j])
@@ -207,14 +211,7 @@ func Clusters(d Diff, impact Impact, maxClusters, maxNodes int) []Cluster {
 			}
 			members[id] = true
 		}
-		var affected []string
-		for _, a := range impact.Affected {
-			if PackageName(byID[a.NodeID]) == p || calledByAny(members, a.NodeID, callersOf) {
-				if !members[a.NodeID] {
-					affected = append(affected, a.NodeID)
-				}
-			}
-		}
+		affected := reachableCallers(changed, callersOf, allowed)
 		sort.SliceStable(affected, func(i, j int) bool {
 			if depth[affected[i]] != depth[affected[j]] {
 				return depth[affected[i]] < depth[affected[j]]
@@ -250,22 +247,45 @@ func Clusters(d Diff, impact Impact, maxClusters, maxNodes int) []Cluster {
 	return out
 }
 
-// calledByAny reports whether node is a caller of any member node.
-func calledByAny(members map[string]bool, node string, callersOf map[string][]string) bool {
-	for m := range members {
-		for _, c := range callersOf[m] {
-			if c == node {
-				return true
+func reachableCallers(roots []string, callersOf map[string][]string, allowed map[string]bool) []string {
+	seen := map[string]bool{}
+	q := append([]string(nil), roots...)
+	for len(q) > 0 {
+		cur := q[0]
+		q = q[1:]
+		for _, id := range callersOf[cur] {
+			if !allowed[id] || seen[id] {
+				continue
 			}
+			seen[id] = true
+			q = append(q, id)
 		}
 	}
-	return false
+	out := make([]string, 0, len(seen))
+	for id := range seen {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // OverviewDiff projects changed and affected facts onto package-sized nodes
 // for a compact top-level diagram.
 func OverviewDiff(d Diff, impact Impact, max int) Diff {
 	views := PackageViews(d, impact)
+	// Standard-library and third-party imports remain in the report, but they
+	// overwhelm the top-level picture when mixed with the repository's own
+	// packages. The overview is for local architecture; dependency changes are
+	// still visible in the rollup and focused graphs.
+	local := make([]PackageView, 0, len(views))
+	for _, v := range views {
+		if !v.External {
+			local = append(local, v)
+		}
+	}
+	if len(local) > 1 {
+		views = local
+	}
 	if max > 0 && len(views) > max {
 		views = views[:max]
 	}
@@ -278,7 +298,7 @@ func OverviewDiff(d Diff, impact Impact, max int) Diff {
 		byID[n.ID] = n
 	}
 	nodeOf := map[string]*Node{}
-	var od Diff
+	od := Diff{SchemaVersion: SchemaVersion, Summary: d.Summary}
 	for _, v := range views {
 		change := Unchanged
 		switch {
@@ -293,11 +313,7 @@ func OverviewDiff(d Diff, impact Impact, max int) Diff {
 		if v.Affected > 0 && v.Added+v.Removed+v.Modified == 0 {
 			res = Potential
 		}
-		base := v.Package
-		if i := strings.LastIndexByte(base, '/'); i >= 0 && i+1 < len(base) {
-			base = base[i+1:]
-		}
-		n := Node{ID: stableID("pkgview", v.Package), Kind: fmt.Sprintf("package · %d changed · %d potential", v.Added+v.Removed+v.Modified, v.Affected), Name: base, QualifiedName: v.Package, Change: change, Resolution: res}
+		n := Node{ID: stableID("pkgview", v.Package), Kind: fmt.Sprintf("package · %d changed · %d potential", v.Added+v.Removed+v.Modified, v.Affected), Name: v.Package, QualifiedName: v.Package, Change: change, Resolution: res}
 		nodeOf[v.Package] = &n
 		od.Nodes = append(od.Nodes, n)
 	}
@@ -314,17 +330,45 @@ func OverviewDiff(d Diff, impact Impact, max int) Diff {
 		counts[fp][tp]++
 	}
 	var es []Edge
+	strength := map[string]int{}
 	for fp, m := range counts {
 		for tp := range m {
-			es = append(es, Edge{From: nodeOf[fp].ID, To: nodeOf[tp].ID, Kind: "depends on"})
+			from, to := nodeOf[fp].ID, nodeOf[tp].ID
+			id := StableEdgeID(from, to, "depends on")
+			strength[id] = m[tp]
+			es = append(es, Edge{ID: id, From: from, To: to, Kind: "depends on", Resolution: Resolved, Change: Unchanged})
 		}
 	}
 	sort.Slice(es, func(i, j int) bool {
 		if es[i].From != es[j].From {
 			return es[i].From < es[j].From
 		}
+		if strength[es[i].ID] != strength[es[j].ID] {
+			return strength[es[i].ID] > strength[es[j].ID]
+		}
 		return es[i].To < es[j].To
 	})
+	// Dense package graphs quickly become a hairball. Retain a deterministic
+	// two strongest outgoing relationships per package; focused cluster views
+	// carry the symbol-level detail.
+	if len(es) > 0 {
+		limited := make([]Edge, 0, len(es))
+		outgoing := map[string]int{}
+		for _, e := range es {
+			if outgoing[e.From] >= 2 {
+				continue
+			}
+			outgoing[e.From]++
+			limited = append(limited, e)
+		}
+		es = limited
+		sort.Slice(es, func(i, j int) bool {
+			if es[i].From != es[j].From {
+				return es[i].From < es[j].From
+			}
+			return es[i].To < es[j].To
+		})
+	}
 	od.Edges = es
 	return od
 }

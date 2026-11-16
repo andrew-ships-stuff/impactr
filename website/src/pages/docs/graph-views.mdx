@@ -1,0 +1,40 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Graph views
+description: Read architecture, diff, and impact views correctly.
+---
+# Graph views
+
+Impactr renders three related views from the same canonical graph data.
+
+## Architecture
+
+The architecture view shows a snapshot of the system at one revision. Use it to orient yourself before interpreting change semantics.
+
+```bash
+impactr analyze --view architecture
+```
+
+## Diff
+
+The default view classifies added, removed, and modified nodes and relationships using stable IDs and implementation hashes.
+
+```bash
+impactr analyze --view diff
+```
+
+Green denotes added facts, muted red denotes removed facts, amber denotes modified facts, and slate denotes unchanged context. Labels and symbols supplement color.
+
+## Impact radius
+
+Impact analysis walks reverse dependencies with configured depth and node budgets. Changed facts are confirmed; reachable callers are *potentially affected*.
+
+```bash
+impactr analyze --view impact
+```
+
+Impactr intentionally does not assign invented failure probabilities. Reachability directs review attention; it does not prove behavior.
+
+## Large graphs
+
+Render limits keep diagrams reviewable. The complete versioned JSON graph remains available even when the visual view is capped.

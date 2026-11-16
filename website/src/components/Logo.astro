@@ -1,0 +1,12 @@
+---
+import { url } from '../lib/site';
+const { compact = false } = Astro.props;
+---
+<a class="logo" href={url('/')} aria-label="Impactr home">
+  <img src={url('/brand/impactr-icon.svg')} width="34" height="34" alt="" />
+  {!compact && <span>Impactr</span>}
+</a>
+<style>
+  .logo { display: inline-flex; align-items: center; gap: .65rem; color: var(--text); font-size: 1.15rem; font-weight: 700; letter-spacing: -.03em; text-decoration: none; }
+  img { border-radius: 8px; }
+</style>

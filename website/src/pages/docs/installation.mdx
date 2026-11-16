@@ -1,0 +1,41 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Installation
+description: Install the Impactr CLI and optional embedded model.
+---
+# Installation
+
+Impactr is a Go CLI. The repository currently documents Homebrew and `go install` paths.
+
+## Homebrew
+
+```bash
+brew install andrew-ships-stuff/tap/impactr
+impactr version
+```
+
+The organization is `andrew-ships-stuff`; commands using `andrew-ships-code` do not match the current repository or tap path.
+
+## Build from source
+
+Impactr currently targets Go 1.24.x in CI.
+
+```bash
+git clone https://github.com/andrew-ships-stuff/impactr.git
+cd impactr
+make install
+```
+
+`make test` runs the offline suite. `make run` analyzes `HEAD` against `master`; use `BASE`, `HEAD`, and `IMPACTR_ARGS` to override it.
+
+## Install the embedded model
+
+```bash
+impactr model install
+```
+
+Model installation is a separate consent boundary. Impactr shows the model name, license, size, and checksum before downloading. A partial file is only promoted into the cache after verification.
+
+## Offline operation
+
+Once the binary and optional model are present, local analysis does not require a hosted service. Use `--no-ai` or provider `none` when deterministic output alone is preferred.

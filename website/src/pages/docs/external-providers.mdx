@@ -1,0 +1,43 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: External providers
+description: Configure Ollama, llama-server, or an OpenAI-compatible endpoint.
+---
+# External providers
+
+External inference is optional. Deterministic parsing, graph comparison, blast radius, and rendering do not depend on it.
+
+## Ollama
+
+```bash
+IMPACTR_PROVIDER=ollama \
+IMPACTR_MODEL=qwen2.5:0.5b \
+impactr analyze
+```
+
+The default Ollama endpoint is `http://127.0.0.1:11434`.
+
+## llama-server
+
+```bash
+IMPACTR_PROVIDER=llama-server \
+IMPACTR_ENDPOINT=http://127.0.0.1:8080 \
+IMPACTR_MODEL=local-model \
+impactr analyze
+```
+
+## OpenAI-compatible
+
+```bash
+IMPACTR_PROVIDER=openai-compatible \
+IMPACTR_ENDPOINT=https://provider.example/v1 \
+IMPACTR_MODEL=your-model \
+IMPACTR_API_KEY=... \
+impactr analyze
+```
+
+Keep credentials in the environment, never in `.impactr.yaml`. Provider requests include names, paths, signatures, evidence summaries, and graph relationships. Your configured endpoint's transport, retention, and training policies apply.
+
+## Source-data boundary
+
+`inference.send_source` is currently `false`; the implemented provider request uses compact structured facts rather than full repository files. Review artifact and provider policies before enabling an external endpoint in CI.

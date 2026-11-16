@@ -1,0 +1,170 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import CopyCode from '../components/CopyCode.astro';
+import HeroGraph from '../components/HeroGraph.astro';
+import GraphExplorer from '../components/GraphExplorer.astro';
+import { url } from '../lib/site';
+import { ArrowRight, Braces, Boxes, Check, CircleDot, Cpu, GitBranch, GitPullRequest, Layers, Network, Radar, ShieldCheck, SquareTerminal, Workflow, Zap } from '@lucide/astro';
+
+const features = [
+  [Network, 'Deterministic graphs', 'Relationships come from parsed symbols, imports, and named calls — never an AI guess.'],
+  [GitBranch, 'Visual Git diffs', 'Stable node identities reveal added, removed, and modified architecture across revisions.'],
+  [Radar, 'Blast-radius analysis', 'Bounded reverse-dependency walks identify components that may need closer review.'],
+  [Cpu, 'CPU-only AI', 'A small embedded model can explain structured evidence without a GPU or inference server.'],
+  [Zap, 'Go-native execution', 'Bounded workers parse independent packages concurrently and aggregate results deterministically.'],
+  [SquareTerminal, 'Shift-left hooks', 'Analyze the index before commit or the branch before push, nonblocking by default.'],
+  [GitPullRequest, 'CI-native delivery', 'Publish diagrams and summaries to review workflows with explicit trust boundaries.'],
+  [Braces, 'Agent-friendly output', 'Versioned JSON graphs and evidence IDs make results useful beyond the terminal.'],
+];
+---
+<BaseLayout>
+  <section id="overview" class="hero section">
+    <div class="grid-bg hero-grid-bg"></div>
+    <div class="site-shell hero-layout">
+      <div class="hero-copy">
+        <p class="eyebrow">Architecture intelligence for Git</p>
+        <h1 class="display">See the impact<br/>before you merge.</h1>
+        <p class="lede">Visualize architectural changes, trace affected dependencies, and understand the consequences of every pull request. Locally, on your CPU, without mandatory cloud inference.</p>
+        <div class="hero-actions"><a class="btn btn-primary" href={url('/docs/getting-started/')}>Get started <ArrowRight size={17}/></a><a class="btn btn-secondary" href="https://github.com/andrew-ships-stuff/impactr">View on GitHub</a></div>
+        <CopyCode code="brew install andrew-ships-stuff/tap/impactr" />
+        <div class="hero-tags"><span class="tag">Go-native</span><span class="tag">CPU-first</span><span class="tag">Local by default</span><span class="tag">GitHub & GitLab ready</span></div>
+      </div>
+      <HeroGraph />
+    </div>
+  </section>
+
+  <section class="section problem">
+    <div class="site-shell">
+      <p class="eyebrow">The missing layer in code review</p>
+      <h2 class="section-title">Code diffs show what changed. Impactr shows what it affects.</h2>
+      <p class="lede problem-lede">A line diff ends at the file boundary. Architecture rarely does. Impactr turns the same Git comparison into a versioned graph of packages, symbols, relationships, and source evidence.</p>
+      <div class="problem-grid">
+        <article><span>01</span><h3>Boundaries hide context</h3><p>A small edit can cross package, service, and persistence layers without looking large in a diff.</p></article>
+        <article><span>02</span><h3>Reviewers reconstruct the system</h3><p>Every reviewer spends time rebuilding architectural context before they can judge consequences.</p></article>
+        <article><span>03</span><h3>Downstream effects disappear</h3><p>Callers and dependents outside the changed file are easy to miss until a test — or production — finds them.</p></article>
+      </div>
+      <div class="transition-line"><span>Git patch</span><i></i><span>Deterministic analysis</span><i></i><strong>Architecture diff</strong></div>
+    </div>
+  </section>
+
+  <section class="section demo-section">
+    <div class="site-shell">
+      <div class="section-intro"><div><p class="eyebrow">Explore the evidence</p><h2 class="section-title">One change. Three useful views.</h2></div><p class="lede">Inspect a realistic fixture as architecture, a semantic diff, or a bounded impact radius. Select any node to see the source evidence behind it.</p></div>
+      <GraphExplorer />
+    </div>
+  </section>
+
+  <section id="how-it-works" class="section how">
+    <div class="site-shell">
+      <p class="eyebrow">How it works</p><h2 class="section-title">Facts first. Explanation second.</h2>
+      <div class="pipeline" aria-label="Impactr analysis pipeline">
+        <article><span>01</span><GitBranch/><h3>Compare</h3><p>Resolve revisions, the index, or working-tree changes without checking out a commit.</p></article><i>→</i>
+        <article><span>02</span><Boxes/><h3>Analyze</h3><p>Parse supported declarations, imports, dependencies, and statically named direct calls.</p></article><i>→</i>
+        <article><span>03</span><Network/><h3>Visualize</h3><p>Compare stable graph identities to classify architectural nodes and relationships.</p></article><i>→</i>
+        <article><span>04</span><CircleDot/><h3>Explain</h3><p>Give bounded graph facts to a local model; discard claims that lack valid evidence IDs.</p></article>
+      </div>
+      <div class="authority-note"><ShieldCheck size={22}/><p><strong>The graph is authoritative.</strong> The LLM interprets a compact evidence set; it does not invent the architecture. Disable AI and every deterministic view still works.</p></div>
+    </div>
+  </section>
+
+  <section class="section cpu-section">
+    <div class="site-shell cpu-layout">
+      <div><p class="eyebrow">CPU-first inference</p><h2 class="section-title">Intelligence without the infrastructure.</h2><p class="lede">Impactr brings AI-assisted architectural reasoning into the developer workflow without requiring a GPU, hosted model, or separate inference server.</p>
+        <ul class="check-list"><li><Check/>Embedded CPU execution is the default provider.</li><li><Check/>Model installation is an explicit, checksum-verified step.</li><li><Check/>External providers remain optional.</li><li><Check/>Deterministic analysis works with AI disabled.</li><li><Check/>Local inference keeps source-derived facts on your machine.</li></ul>
+      </div>
+      <div class="inference-diagram panel">
+        <div class="core"><small>IMPACTR</small><strong>Deterministic graph</strong><em>versioned facts + evidence IDs</em></div>
+        <div class="downline"></div><div class="layer">Inference boundary</div>
+        <div class="provider-grid"><div class="provider primary"><Cpu/><strong>Embedded</strong><span>Pure-Go CPU runtime</span><small>default</small></div><div class="provider"><Workflow/><strong>External</strong><span>Explicit endpoint</span><small>optional</small></div></div>
+        <div class="provider-children"><span>Ollama</span><span>llama-server</span><span>OpenAI-compatible</span></div>
+      </div>
+    </div>
+    <div class="site-shell table-wrap" tabindex="0" aria-label="Scrollable inference provider comparison"><table><thead><tr><th>Provider</th><th>Runs where</th><th>Setup</th><th>Data boundary</th></tr></thead><tbody><tr><td><b>Embedded</b></td><td>Your CPU</td><td><code>impactr model install</code></td><td>Local machine</td></tr><tr><td>None</td><td>No inference</td><td><code>--no-ai</code></td><td>Deterministic facts only</td></tr><tr><td>Ollama</td><td>Configured local host</td><td>Optional server</td><td>Your endpoint</td></tr><tr><td>llama-server</td><td>Configured host</td><td>Optional server</td><td>Your endpoint</td></tr><tr><td>OpenAI-compatible</td><td>Configured endpoint</td><td>URL + environment credential</td><td>Provider policy applies</td></tr></tbody></table><p class="table-note">Go workers accelerate independent parsing and graph work. The inference runtime manages its own CPU threading; no GPU-parity claim is implied.</p></div>
+  </section>
+
+  <section class="section workflow-section">
+    <div class="site-shell workflow-layout">
+      <div><p class="eyebrow">Local shift-left workflow</p><h2 class="section-title">Catch architectural surprises before the pull request.</h2><p class="lede">Run the same engine on staged files, the working tree, or a branch comparison. Hooks are nonblocking by default and never download a model implicitly.</p>
+        <div class="git-flow"><span>Edit code</span><b>→</b><span class="active">Analyze<small>Impactr CLI</small></span><b>→</b><span>Commit</span><b>→</b><span>Push</span><b>→</b><span>PR</span></div>
+        <div class="command-stack"><CopyCode code="impactr analyze --staged --no-ai"/><CopyCode code="impactr analyze --working-tree"/><CopyCode code="impactr hook install --type pre-push"/></div>
+      </div>
+      <div class="terminal panel" aria-label="Illustrative Impactr terminal output"><div class="terminal-bar"><i></i><i></i><i></i><span>impactr — zsh</span></div><pre><code><b>$ impactr analyze --base origin/main</b>
+
+<span>✓</span> repository   origin/main...HEAD
+<span>✓</span> git          4 changed files
+<span>✓</span> analysis     3 packages · 18 symbols
+<span>✓</span> graph        +2 / −0 / ~3 nodes
+<span>✓</span> impact       3 potentially affected
+
+<strong>Architecture changes</strong>
+  <ins>+ 2 components</ins>
+  <mark>~ 3 modified relationships</mark>
+  <del>− 1 dependency</del>
+
+<strong>Potential impact</strong>
+  Authentication middleware
+  Session validation
+  User service
+
+<strong>Artifacts</strong>
+  .impactr/impact.svg
+  .impactr/summary.md</code></pre><p>Illustrative output; actual results depend on the repository.</p></div>
+    </div>
+  </section>
+
+  <section class="section integrations-preview">
+    <div class="site-shell">
+      <div class="section-intro"><div><p class="eyebrow">Review where the work happens</p><h2 class="section-title">Architecture reviews, delivered to the pull request.</h2></div><p class="lede">The composite Action produces a job summary and complete artifact bundle. Trusted same-repository runs can publish one canonical, updateable comment.</p></div>
+      <div class="pr-grid">
+        <div class="pr-comment panel"><div class="pr-head"><div class="avatar">I</div><div><strong>impactr-bot</strong> commented now</div><span>•••</span></div><div class="pr-body"><h3>Impactr architecture analysis</h3><p class="muted">PR #184 · Add session validation cache</p><div class="pr-summary"><span><b class="green">+2</b> components</span><span><b class="amber">~3</b> relationships</span><span><b>3</b> potentially affected</span></div><div class="mini-graph"><span>Auth middleware</span><i>↓</i><span class="added-box">+ Session validator</span><div><span>User service</span><span class="added-box">+ Redis</span></div></div><p><strong>Review focus:</strong> Session validation now sits on the authentication path. Confirm cache failure behavior and user-service assumptions.</p><a href="#">View source evidence →</a></div></div>
+        <div class="workflow-code"><div class="code-label">.github/workflows/impactr.yml <span>same-repository PRs</span></div><pre><code><span>name:</span> Impactr
+<span>on:</span> [pull_request]
+
+<span>permissions:</span>
+  <span>contents:</span> write
+  <span>pull-requests:</span> write
+
+<span>jobs:</span>
+  <span>impactr:</span>
+    <span>runs-on:</span> ubuntu-latest
+    <span>steps:</span>
+      - <span>uses:</span> actions/checkout@v4
+        <span>with:</span> &#123; fetch-depth: 0 &#125;
+      - <span>uses:</span> andrew-ships-stuff/impactr@v1</code></pre><div class="security-callout"><ShieldCheck/><p><strong>Fork PRs stay read-only.</strong> Use artifact-only analysis plus a separately trusted <code>workflow_run</code> publisher. Never execute fork code in a privileged context.</p></div><a class="btn btn-secondary" href={url('/docs/github-actions/')}>Read the secure setup <ArrowRight size={16}/></a></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features" class="section features">
+    <div class="site-shell"><p class="eyebrow">Built for engineering judgment</p><h2 class="section-title">Traceable by design.</h2><div class="feature-grid">{features.map(([Icon, title, text]) => <article><Icon size={24}/><h3>{title}</h3><p>{text}</p></article>)}</div></div>
+  </section>
+
+  <section class="section go-section">
+    <div class="site-shell go-layout"><div><p class="eyebrow">Why Go</p><h2 class="section-title">Parallel where it helps. Deterministic where it matters.</h2><p class="lede">Impactr uses bounded concurrency for independent source work, then joins results into one canonical, sorted graph. The architecture favors reproducible output and cross-platform binaries over benchmark theater.</p><a class="btn btn-secondary" href={url('/architecture/')}>Explore the engine <ArrowRight size={16}/></a></div>
+      <div class="workers panel"><div class="worker-input">Changed packages</div><div class="worker-lines"></div><div class="worker-row"><span>worker 01<small>parse auth</small></span><span>worker 02<small>parse session</small></span><span>worker 03<small>parse storage</small></span></div><div class="join-lines"></div><div class="canonical"><Layers/><span>Canonical graph<small>sorted · stable IDs · cached</small></span></div></div>
+    </div>
+  </section>
+
+  <section class="cta-section"><div class="site-shell cta-inner"><div><p class="eyebrow">Keep the review close to the code</p><h2>Make architecture visible before it becomes an incident.</h2></div><div><CopyCode code="brew install andrew-ships-stuff/tap/impactr"/><a class="btn btn-primary" href={url('/docs/getting-started/')}>Analyze your first change <ArrowRight size={17}/></a></div></div></section>
+</BaseLayout>
+
+<style>
+  .hero { position: relative; overflow: hidden; padding-top: clamp(4.5rem, 8vw, 7rem); } .hero-grid-bg { position: absolute; inset: 0; pointer-events: none; }
+  .hero-layout { position: relative; display: grid; grid-template-columns: minmax(0, .9fr) minmax(480px, 1.1fr); gap: clamp(3rem, 6vw, 6rem); align-items: center; }
+  .hero-copy { min-width: 0; } .hero-copy .lede { max-width: 690px; margin: 1.7rem 0; } .hero-actions { display: flex; gap: .75rem; margin: 1.8rem 0 1rem; } .hero-copy .copy-shell { max-width: 590px; } .hero-tags { display: flex; gap: .8rem 1.2rem; flex-wrap: wrap; margin-top: 1.1rem; }
+  .problem { background: var(--bg-soft); border-block: 1px solid var(--line); } .problem-lede { max-width: 760px; margin: 1.5rem 0 3rem; } .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); } .problem-grid article { padding: 2rem; border-right: 1px solid var(--line); background: var(--surface); } .problem-grid article:last-child { border: 0; } .problem-grid span { color: var(--accent); font: 700 .7rem var(--font-mono); } .problem-grid h3 { font-size: 1.25rem; letter-spacing: -.02em; } .problem-grid p { color: var(--muted); line-height: 1.65; }
+  .transition-line { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 2rem; color: var(--muted); font: .7rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; } .transition-line i { width: clamp(20px,8vw,90px); border-top: 1px solid var(--line-strong); } .transition-line strong { color: var(--added); }
+  .section-intro { display: grid; grid-template-columns: 1.15fr .85fr; gap: 3rem; align-items: end; margin-bottom: 2.5rem; } .section-intro .lede { margin: 0; }
+  .how { background: var(--bg-soft); border-block: 1px solid var(--line); } .pipeline { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr; gap: 1rem; align-items: center; margin-top: 3rem; } .pipeline article { height: 100%; min-height: 240px; border: 1px solid var(--line); padding: 1.5rem; background: var(--surface); } .pipeline article > span { float: right; color: var(--muted); font: .7rem var(--font-mono); } .pipeline article svg { color: var(--accent); margin-bottom: 2rem; } .pipeline h3 { margin: 0 0 .6rem; } .pipeline p { color: var(--muted); line-height: 1.6; font-size: .9rem; } .pipeline > i { color: var(--accent); font-style: normal; } .authority-note { display: flex; gap: .8rem; align-items: flex-start; max-width: 760px; margin: 2rem auto 0; color: var(--muted); } .authority-note svg { flex: 0 0 auto; color: var(--added); } .authority-note p { margin: 0; } .authority-note strong { color: var(--text); }
+  .cpu-section { position: relative; overflow: hidden; } .cpu-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: 5rem; align-items: center; } .check-list { list-style: none; padding: 0; margin: 2rem 0; display: grid; gap: .8rem; } .check-list li { display: flex; gap: .65rem; align-items: center; color: var(--muted); } .check-list svg { width: 18px; color: var(--added); }
+  .inference-diagram { padding: 2rem; text-align: center; background-image: radial-gradient(var(--line) .7px, transparent .7px); background-size: 18px 18px; } .core { width: min(360px, 90%); margin: auto; border: 1px solid var(--accent); background: var(--surface-solid); padding: 1.25rem; display: grid; gap: .35rem; } .core small, .core em { color: var(--muted); font: .65rem var(--font-mono); font-style: normal; } .downline { height: 35px; width: 1px; background: var(--line-strong); margin: auto; } .layer { display: inline-block; border: 1px solid var(--line); background: var(--bg-soft); padding: .5rem 1rem; color: var(--muted); font: .65rem var(--font-mono); text-transform: uppercase; } .provider-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 35px; } .provider { position: relative; display: grid; gap: .4rem; place-items: center; border: 1px solid var(--line); padding: 1.25rem; background: var(--surface-solid); } .provider::before { content:''; position:absolute; top:-36px; height:35px; border-left:1px solid var(--line-strong); } .provider.primary { border-color: var(--added); } .provider svg { color: var(--accent); } .provider span, .provider small { color: var(--muted); font-size: .7rem; } .provider small { font-family: var(--font-mono); text-transform: uppercase; } .provider-children { margin: 1rem 0 0 auto; width: calc(50% - .5rem); display: flex; justify-content: space-around; gap: .5rem; } .provider-children span { border: 1px solid var(--line); background: var(--surface-solid); padding: .4rem; color: var(--muted); font: .56rem var(--font-mono); }
+  .table-wrap { margin-top: 4rem; overflow-x: auto; } table { min-width: 760px; width: 100%; border-collapse: collapse; } th, td { border-bottom: 1px solid var(--line); padding: 1rem; text-align: left; } th { color: var(--muted); font: 700 .68rem var(--font-mono); text-transform: uppercase; letter-spacing: .06em; } td { font-size: .88rem; color: var(--muted); } td b { color: var(--text); } td code { color: var(--accent); } .table-note { color: var(--muted); font-size: .75rem; }
+  .workflow-section { background: var(--bg-soft); border-block: 1px solid var(--line); } .workflow-layout { display: grid; grid-template-columns: 1fr .9fr; gap: 5rem; align-items: center; } .git-flow { display: flex; align-items: stretch; margin: 2rem 0; overflow-x: auto; } .git-flow > span { min-width: max-content; padding: .8rem .7rem; border: 1px solid var(--line); font: .68rem var(--font-mono); } .git-flow > b { align-self: center; color: var(--muted); padding: .2rem; } .git-flow .active { border-color: var(--accent); color: var(--accent); } .git-flow small { display: block; margin-top: .25rem; color: var(--muted); } .command-stack { display: grid; gap: .6rem; } .terminal { overflow: hidden; background: var(--code-bg); color: var(--code-text); } .terminal-bar { display: flex; align-items: center; gap: .4rem; padding: .75rem 1rem; border-bottom: 1px solid #26372f; } .terminal-bar i { width: 8px; height: 8px; border-radius: 50%; background: #3f554b; } .terminal-bar span { margin-left: .4rem; color: #80958c; font: .66rem var(--font-mono); } .terminal pre { margin: 0; padding: 1.5rem; overflow-x: auto; } .terminal code { font: .74rem/1.8 var(--font-mono); } .terminal code span, .terminal ins { color: #55d894; text-decoration: none; } .terminal mark { color: #f2bd57; background: none; } .terminal del { color: #ef777c; text-decoration: none; } .terminal > p { padding: 0 1.5rem 1rem; color: #82968d; font-size: .68rem; }
+  .integrations-preview .pr-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: 2rem; } .pr-comment { box-shadow: none; } .pr-head { display: flex; gap: .8rem; align-items: center; padding: 1rem; border-bottom: 1px solid var(--line); color: var(--muted); font-size: .82rem; } .pr-head span { margin-left: auto; } .avatar { display:grid; place-items:center; width:32px;height:32px;border-radius:50%; background: var(--accent);color:var(--bg);font-weight:800; } .pr-body { padding: 1.5rem; } .pr-body h3 { margin: 0; font-size: 1.25rem; } .muted { color: var(--muted); } .pr-summary { display: flex; gap: .5rem; flex-wrap: wrap; margin: 1.2rem 0; } .pr-summary span { border:1px solid var(--line);padding:.55rem .7rem;font-size:.75rem; } .green{color:var(--added)} .amber{color:var(--modified)} .mini-graph{display:grid;place-items:center;gap:.65rem;padding:1.2rem;background:var(--bg-soft);border:1px solid var(--line);font-size:.75rem}.mini-graph span{border:1px solid var(--line);background:var(--surface-solid);padding:.5rem .8rem}.mini-graph div{display:flex;gap:3rem}.mini-graph .added-box{border-color:var(--added)} .pr-body > p { line-height:1.6;font-size:.88rem}.pr-body a{color:var(--accent);font-size:.8rem}.workflow-code{min-width:0}.code-label{display:flex;justify-content:space-between;color:var(--muted);font:.68rem var(--font-mono);padding:.7rem;border:1px solid var(--line);background:var(--bg-soft)}.workflow-code pre{margin:0;padding:1.4rem;overflow:auto;background:var(--code-bg);color:var(--code-text);font:.75rem/1.7 var(--font-mono)}.workflow-code pre span{color:#49d6c6}.security-callout{display:flex;gap:.75rem;padding:1rem;border:1px solid var(--line);margin:1rem 0;color:var(--muted);font-size:.78rem;line-height:1.5}.security-callout svg{flex:0 0 auto;color:var(--modified)}.security-callout p{margin:0}.security-callout strong{color:var(--text)}
+  .features { background: var(--bg-soft); border-block: 1px solid var(--line); } .feature-grid { margin-top: 3rem; display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); } .feature-grid article { min-height: 230px; padding: 1.5rem; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); } .feature-grid article:nth-child(4n) { border-right: 0; } .feature-grid article:nth-child(n+5) { border-bottom: 0; } .feature-grid svg { color: var(--accent); } .feature-grid h3 { margin-top: 2.6rem; font-size: 1rem; } .feature-grid p { color: var(--muted); line-height: 1.6; font-size: .85rem; }
+  .go-layout { display: grid; grid-template-columns: .9fr 1.1fr; gap: 5rem; align-items: center; } .go-layout .btn { margin-top: 1rem; } .workers { padding: 2rem; background-image: radial-gradient(var(--line) .7px, transparent .7px); background-size: 18px 18px; } .worker-input { width: 180px; margin: auto; padding: .8rem; border: 1px solid var(--line); background: var(--surface-solid); text-align: center; font: .7rem var(--font-mono); } .worker-lines, .join-lines { height: 35px; background: linear-gradient(90deg, transparent 16%, var(--line-strong) 16%, var(--line-strong) calc(16% + 1px), transparent calc(16% + 1px), transparent 50%, var(--line-strong) 50%, var(--line-strong) calc(50% + 1px), transparent calc(50% + 1px), transparent 84%, var(--line-strong) 84%, var(--line-strong) calc(84% + 1px), transparent calc(84% + 1px)); } .worker-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; } .worker-row span { border: 1px solid var(--accent); background: var(--surface-solid); padding: .8rem; text-align: center; font: .67rem var(--font-mono); } .worker-row small, .canonical small { display: block; color: var(--muted); margin-top: .35rem; } .canonical { display: flex; justify-content: center; align-items: center; gap: .7rem; max-width: 320px; margin: auto; border: 1px solid var(--added); padding: 1rem; background: var(--surface-solid); font-weight: 650; } .canonical svg { color: var(--added); }
+  .cta-section { padding-block: clamp(4rem,8vw,7rem); background: #0b211b; color: #edf8f3; border-top: 1px solid #254b40; } .cta-inner { display: grid; grid-template-columns: 1fr .75fr; gap: 5rem; align-items: center; } .cta-inner h2 { max-width: 680px; font-size: clamp(2rem,4vw,3.8rem); line-height: 1.04; letter-spacing: -.04em; } .cta-inner .eyebrow { color: #49d6c6; } .cta-inner .btn { margin-top: 1rem; background: #edf8f3; color: #07110f; }
+  @media (max-width: 1020px) { .hero-layout, .cpu-layout, .workflow-layout, .go-layout { grid-template-columns: 1fr; } .hero-layout { gap: 3rem; } .feature-grid { grid-template-columns: repeat(2, 1fr); } .feature-grid article:nth-child(2n) { border-right: 0; } .feature-grid article:nth-child(n+5) { border-bottom: 1px solid var(--line); } .feature-grid article:nth-child(n+7) { border-bottom: 0; } .pipeline { grid-template-columns: 1fr 1fr; } .pipeline > i { display: none; } }
+  @media (max-width: 780px) { .section-intro, .pr-grid, .cta-inner { grid-template-columns: 1fr!important; gap: 2rem!important; } .problem-grid { grid-template-columns: 1fr; } .problem-grid article { border-right:0;border-bottom:1px solid var(--line); } .pipeline { grid-template-columns: 1fr; } .pipeline article { min-height: auto; } }
+  @media (max-width: 540px) { .hero-actions { flex-direction: column; } .feature-grid { grid-template-columns: 1fr; } .feature-grid article { border-right:0!important;border-bottom:1px solid var(--line)!important; } .feature-grid article:last-child{border-bottom:0!important}.provider-children{width:100%}.transition-line{align-items:flex-start;flex-direction:column}.transition-line i{height:18px;width:1px;margin-left:1rem;border-left:1px solid var(--line-strong);border-top:0}.mini-graph div{gap:.5rem}.worker-row{grid-template-columns:1fr}.worker-lines,.join-lines{background:linear-gradient(90deg,transparent 50%,var(--line-strong) 50%,var(--line-strong) calc(50% + 1px),transparent calc(50% + 1px))} }
+</style>
