@@ -13,11 +13,13 @@ import (
 // symbols); dependencies group by import path; everything else falls back to
 // the qualified-name prefix.
 func PackageName(n Node) string {
-	if n.Kind == "external_dependency" && n.Name != "" {
+	if n.Kind == "external_dependency" {
 		if n.QualifiedName != "" {
 			return n.QualifiedName
 		}
-		return n.Name
+		if n.Name != "" {
+			return n.Name
+		}
 	}
 	if p := n.Location.Path; p != "" {
 		if n.Kind == "package" || n.Kind == "module" {
@@ -178,7 +180,9 @@ func Clusters(d Diff, impact Impact, maxClusters, maxNodes int) []Cluster {
 	}
 	callersOf := make(map[string][]string)
 	for _, e := range d.Edges {
-		callersOf[e.To] = append(callersOf[e.To], e.From)
+		if e.Change != Removed {
+			callersOf[e.To] = append(callersOf[e.To], e.From)
+		}
 	}
 	names := make([]string, 0, len(pkgs))
 	for p := range pkgs {

@@ -45,12 +45,15 @@ func TestBriefPromptNamesOnlyKnownPackages(t *testing.T) {
 }
 
 func TestDeterministicBrief(t *testing.T) {
-	b := DeterministicBrief(briefReq(), "")
+	b := DeterministicBrief(briefReq(), "provider details must not leak into review prose")
 	if !b.Fallback || b.Provider != "deterministic" {
 		t.Fatalf("%#v", b)
 	}
 	if !strings.Contains(b.Headline, "3 symbols changed across 2 local packages") || !strings.Contains(b.Headline, "Review session first") {
 		t.Fatalf("headline: %s", b.Headline)
+	}
+	if strings.Contains(b.Headline, "provider details") {
+		t.Fatalf("fallback reason leaked into headline: %s", b.Headline)
 	}
 	if len(b.Clusters) != 2 || b.Clusters[0].Title == "" {
 		t.Fatalf("clusters: %#v", b.Clusters)
