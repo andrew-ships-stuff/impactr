@@ -190,7 +190,9 @@ func createBranch(ctx context.Context, r OutputRunner, repo, branch string) bool
 }
 
 func contentsSHA(ctx context.Context, r OutputRunner, repo, p, branch string) (string, bool) {
-	out, e := r.Output(ctx, "gh", "api", "repos/"+repo+"/contents/"+p, "--jq", ".sha", "-f", "ref="+branch)
+	// The ref must ride in the query string: gh api silently switches to
+	// POST when -f is present, which 404s on this endpoint.
+	out, e := r.Output(ctx, "gh", "api", "repos/"+repo+"/contents/"+p+"?ref="+branch, "--jq", ".sha")
 	if e != nil {
 		return "", false
 	}
