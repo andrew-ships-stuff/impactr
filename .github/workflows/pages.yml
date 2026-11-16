@@ -25,6 +25,7 @@ jobs:
       - uses: withastro/action@56781b97402ce0487b7e61ce2cb960c0e2cc5289 # v3
         with:
           path: ./website
+          node-version: "22.23.4" # Astro 7 minimum; the action defaults to Node 20.
 
   deploy:
     environment:
