@@ -25,7 +25,8 @@ runs:
     - name: Install checksum-pinned embedded model
       if: ${{ inputs.provider == 'embedded' }}
       shell: bash
-      run: "$RUNNER_TEMP/impactr" model install || echo "::warning::Model installation failed; deterministic analysis will continue"
+      run: >-
+        "$RUNNER_TEMP/impactr" model install || echo "::warning::Model installation failed; deterministic analysis will continue"
     - name: Analyze pull request
       shell: bash
       env:
