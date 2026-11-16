@@ -1,6 +1,7 @@
 package integrations
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -28,7 +29,14 @@ func (ExecRunner) Run(ctx context.Context, name string, args ...string) error {
 	return nil
 }
 func (ExecRunner) Output(ctx context.Context, name string, args ...string) ([]byte, error) {
-	return exec.CommandContext(ctx, name, args...).Output()
+	cmd := exec.CommandContext(ctx, name, args...)
+	var errs bytes.Buffer
+	cmd.Stderr = &errs
+	out, e := cmd.Output()
+	if e != nil {
+		return out, fmt.Errorf("%s %v: %w: %s", name, args, e, strings.TrimSpace(errs.String()))
+	}
+	return out, nil
 }
 
 // Stats is the machine-readable summary embedded in every Impactr comment so
@@ -98,12 +106,14 @@ func uploadAsset(ctx context.Context, r OutputRunner, repo, path string) (string
 		"-F", "name="+filepath.Base(path),
 		"-F", "file=@"+path)
 	if e != nil {
+		fmt.Fprintf(os.Stderr, "impactr: uploads endpoint failed, falling back to --attach: %v\n", e)
 		return "", false
 	}
 	var v struct {
 		AssetURL string `json:"asset_url"`
 	}
 	if json.Unmarshal(out, &v) != nil || v.AssetURL == "" {
+		fmt.Fprintf(os.Stderr, "impactr: uploads endpoint returned no asset_url: %s\n", out)
 		return "", false
 	}
 	return v.AssetURL, true
@@ -142,21 +152,28 @@ func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile,
 		}
 	}
 	args := []string{"pr", "comment", strconv.Itoa(pr)}
-	bf := bodyFile
-	cleanup := func() error { return nil }
-	if changed {
+	var bf string
+	var cleanup func() error = func() error { return nil }
+	write := func(content []byte) (string, func() error, error) {
 		tmp, te := os.CreateTemp("", "impactr-comment-*.md")
+		if te != nil {
+			return "", cleanup, te
+		}
+		if _, te = tmp.Write(content); te != nil {
+			tmp.Close()
+			os.Remove(tmp.Name())
+			return "", cleanup, te
+		}
+		return tmp.Name(), func() error { return os.Remove(tmp.Name()) }, tmp.Close()
+	}
+	if changed {
+		var te error
+		bf, cleanup, te = write(body)
 		if te != nil {
 			return te
 		}
-		if _, te = tmp.Write(body); te != nil {
-			tmp.Close()
-			os.Remove(tmp.Name())
-			return te
-		}
-		te = tmp.Close()
-		bf = tmp.Name()
-		cleanup = func() error { return os.Remove(bf) }
+	} else {
+		bf = bodyFile
 	}
 	if mode == "edit" {
 		args = append(args, "--body-file", bf, "--edit-last", "--create-if-none")
@@ -169,9 +186,34 @@ func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile,
 	if attach != "" {
 		args = append(args, "--attach", attach)
 	}
-	if e := r.Run(ctx, "gh", args...); e != nil {
+	err := r.Run(ctx, "gh", args...)
+	if err != nil && attach != "" {
+		fmt.Fprintf(os.Stderr, "impactr: comment with attached image failed (%v); retrying without image\n", err)
 		_ = cleanup()
-		return e
+		body = []byte(stripImage(string(body), filepath.Base(image)))
+		changed = true
+		var te error
+		bf, cleanup, te = write(body)
+		if te != nil {
+			return te
+		}
+		args = []string{"pr", "comment", strconv.Itoa(pr), "--body-file", bf}
+		if mode == "edit" {
+			args = append(args, "--edit-last", "--create-if-none")
+		}
+		if repo != "" {
+			args = append(args, "--repo", repo)
+		}
+		err = r.Run(ctx, "gh", args...)
+	}
+	if err != nil {
+		_ = cleanup()
+		return err
 	}
 	return cleanup()
+}
+
+func stripImage(body, base string) string {
+	re := regexp.MustCompile(`(?m)^\s*!\[[^\]]*\]\(` + regexp.QuoteMeta(base) + `\)\s*\n?`)
+	return re.ReplaceAllString(body, "")
 }

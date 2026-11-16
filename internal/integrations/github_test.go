@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,12 +11,16 @@ import (
 )
 
 type fake struct {
-	n    string
-	a    []string
-	body string
+	n          string
+	a          []string
+	body       string
+	failAttach bool
 }
 
 func (f *fake) Run(_ context.Context, n string, a ...string) error {
+	if f.failAttach && hasFlag(a, "--attach") {
+		return fmt.Errorf("attaching files requires write access")
+	}
 	f.n = n
 	f.a = a
 	if i := indexOf(a, "--body-file"); i >= 0 && i+1 < len(a) {
@@ -131,6 +136,20 @@ func TestParseStats(t *testing.T) {
 	}
 	if _, ok = ParseStats("no stats here"); ok {
 		t.Fatal("expected no stats")
+	}
+}
+
+func TestGitHubCommentDegradesWhenAttachFails(t *testing.T) {
+	f := &fakeQuery{fake: fake{failAttach: true}, out: "8 7 2\n"}
+	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, "impact.png"); e != nil {
+		t.Fatal(e)
+	}
+	if hasFlag(f.a, "--attach") {
+		t.Fatalf("retry should drop --attach: %#v", f.a)
+	}
+	if strings.Contains(f.body, "](impact.png)") {
+		t.Fatalf("image line should be stripped: %s", f.body)
 	}
 }
 
