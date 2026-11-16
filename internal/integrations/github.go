@@ -3,6 +3,7 @@ package integrations
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -106,7 +107,7 @@ func uploadAsset(ctx context.Context, r OutputRunner, repo, path string) (string
 		"-F", "name="+filepath.Base(path),
 		"-F", "file=@"+path)
 	if e != nil {
-		fmt.Fprintf(os.Stderr, "impactr: uploads endpoint failed, falling back to --attach: %v\n", e)
+		fmt.Fprintf(os.Stderr, "impactr: uploads endpoint failed: %v\n", e)
 		return "", false
 	}
 	var v struct {
@@ -117,6 +118,59 @@ func uploadAsset(ctx context.Context, r OutputRunner, repo, path string) (string
 		return "", false
 	}
 	return v.AssetURL, true
+}
+
+// commitAsset stores the diagram on a dedicated assets branch through the
+// Contents API and returns its raw URL. This is the fallback for GITHUB_TOKEN,
+// which the uploads endpoint rejects with 404.
+func commitAsset(ctx context.Context, r OutputRunner, repo string, pr int, path string) (string, bool) {
+	if repo == "" {
+		return "", false
+	}
+	data, e := os.ReadFile(path)
+	if e != nil {
+		return "", false
+	}
+	branch, p := "impactr-assets", fmt.Sprintf("impactr/pr-%d.png", pr)
+	payload := map[string]any{
+		"content": base64.StdEncoding.EncodeToString(data),
+		"branch":  branch,
+		"message": fmt.Sprintf("impactr: update impact diagram for PR %d", pr),
+	}
+	if sha, ok := contentsSHA(ctx, r, repo, p, branch); ok {
+		payload["sha"] = sha
+	}
+	body, e := json.Marshal(payload)
+	if e != nil {
+		return "", false
+	}
+	tmp, e := os.CreateTemp("", "impactr-asset-*.json")
+	if e != nil {
+		return "", false
+	}
+	defer os.Remove(tmp.Name())
+	if _, e = tmp.Write(body); e != nil {
+		tmp.Close()
+		return "", false
+	}
+	tmp.Close()
+	if _, e = r.Output(ctx, "gh", "api", "--method", "PUT", "repos/"+repo+"/contents/"+p, "--input", tmp.Name()); e != nil {
+		fmt.Fprintf(os.Stderr, "impactr: contents API failed: %v\n", e)
+		return "", false
+	}
+	return "https://raw.githubusercontent.com/" + repo + "/" + branch + "/" + p, true
+}
+
+func contentsSHA(ctx context.Context, r OutputRunner, repo, p, branch string) (string, bool) {
+	out, e := r.Output(ctx, "gh", "api", "repos/"+repo+"/contents/"+p, "--jq", ".sha", "-f", "ref="+branch)
+	if e != nil {
+		return "", false
+	}
+	sha := strings.TrimSpace(string(out))
+	if sha == "" || sha == "null" {
+		return "", false
+	}
+	return sha, true
 }
 
 func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile, image string) error {
@@ -142,6 +196,10 @@ func GitHubComment(ctx context.Context, r CommandRunner, pr int, repo, bodyFile,
 		uploaded := false
 		if qr, rok := r.(OutputRunner); rok {
 			if url, ok := uploadAsset(ctx, qr, repo, image); ok {
+				body = []byte(strings.ReplaceAll(string(body), "]("+filepath.Base(image)+")", "]("+url+")"))
+				changed = true
+				uploaded = true
+			} else if url, ok := commitAsset(ctx, qr, repo, pr, image); ok {
 				body = []byte(strings.ReplaceAll(string(body), "]("+filepath.Base(image)+")", "]("+url+")"))
 				changed = true
 				uploaded = true

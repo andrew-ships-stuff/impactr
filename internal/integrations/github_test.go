@@ -33,15 +33,28 @@ func (f *fake) Run(_ context.Context, n string, a ...string) error {
 
 type fakeQuery struct {
 	fake
-	out    string
-	upload string
+	out      string
+	upload   string
+	okCommit bool
+	putCalls [][]string
 }
 
 func (f *fakeQuery) Output(_ context.Context, _ string, a ...string) ([]byte, error) {
-	for _, v := range a {
-		if strings.Contains(v, "uploads") {
-			return []byte(f.upload), nil
+	joined := strings.Join(a, " ")
+	switch {
+	case strings.Contains(joined, "uploads"):
+		if f.upload == "" {
+			return nil, fmt.Errorf("gh: Not Found (HTTP 404)")
 		}
+		return []byte(f.upload), nil
+	case strings.Contains(joined, "--method PUT"):
+		if !f.okCommit {
+			return nil, fmt.Errorf("gh: Resource not accessible by integration")
+		}
+		f.putCalls = append(f.putCalls, a)
+		return []byte(`{"content":{"sha":"newsha"}}`), nil
+	case strings.Contains(joined, "contents/"):
+		return []byte("null\n"), nil
 	}
 	return []byte(f.out), nil
 }
@@ -93,8 +106,33 @@ func TestGitHubCommentUploadsImageViaAPI(t *testing.T) {
 	if hasFlag(f.a, "--attach") {
 		t.Fatalf("image should be uploaded via api, not --attach: %#v", f.a)
 	}
+	if len(f.putCalls) != 0 {
+		t.Fatal("uploads endpoint succeeded; contents API should not be used")
+	}
 	if !strings.Contains(f.body, "](https://gh.example/assets/impact.png)") || strings.Contains(f.body, "](impact.png)") {
 		t.Fatalf("body not rewritten to asset URL: %s", f.body)
+	}
+}
+
+func TestGitHubCommentCommitsAssetForGitHubToken(t *testing.T) {
+	f := &fakeQuery{out: "8 7 2\n", okCommit: true}
+	body := writeSummary(t, "nodes=8 edges=7 affected=2 head=abc1234")
+	img := filepath.Join(t.TempDir(), "impact.png")
+	if e := os.WriteFile(img, []byte("fakepng"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e := GitHubComment(context.Background(), f, 12, "o/r", body, img); e != nil {
+		t.Fatal(e)
+	}
+	if len(f.putCalls) == 0 {
+		t.Fatalf("expected a contents API PUT to the assets branch, got %#v", f.a)
+	}
+	if hasFlag(f.a, "--attach") {
+		t.Fatalf("expected no --attach when assets branch works: %#v", f.a)
+	}
+	want := "](https://raw.githubusercontent.com/o/r/impactr-assets/impactr/pr-12.png)"
+	if !strings.Contains(f.body, want) || strings.Contains(f.body, "](impact.png)") {
+		t.Fatalf("body not rewritten to raw asset URL: %s", f.body)
 	}
 }
 

@@ -10,7 +10,7 @@ Use `pull_request`, never `pull_request_target` with a checkout of the PR head. 
 4. verifies the workflow repository and PR/head identity through GitHub's API, not artifact fields;
 5. runs `impactr github comment --existing --pr N --repo owner/repo --output <dir>` without checking out or executing fork code.
 
-Transferred files are untrusted data. Never source them, execute them, interpolate them into a shell command, or honor a configuration file from the artifact. `pull-requests: write` is needed only in the publishing trust context, plus `contents: write` there because `gh pr comment --attach` uploads the PNG through the repository uploads endpoint. Artifact-only analysis needs `contents: read`.
+Transferred files are untrusted data. Never source them, execute them, interpolate them into a shell command, or honor a configuration file from the artifact. `pull-requests: write` is needed only in the publishing trust context, plus `contents: write` there for the diagram (the GitHub uploads endpoint rejects `GITHUB_TOKEN` with 404, so Impactr falls back to committing `impact.png` to a dedicated `impactr-assets` branch and referencing it through a raw URL; with a classic repo-scoped token the uploads endpoint is used instead). Artifact-only analysis needs `contents: read`.
 
 This repository dogfoods the Action: `dogfood` in `.github/workflows/ci.yml` runs `uses: ./` on the PR's own code with `contents: read` and `provider: none`, and the separate `publish-impact-comment` job (same-repository PRs only) rebuilds a trusted binary, validates the artifact bundle, and runs `impactr github comment --existing`.
 
