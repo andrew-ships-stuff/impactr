@@ -65,9 +65,21 @@ func newTerminalReporter() *progress.Reporter {
 		}
 		rendered = len(order)
 	}
+	var stop func()
 	if tty {
+		ticker := time.NewTicker(90 * time.Millisecond)
+		done := make(chan struct{})
+		stop = func() {
+			ticker.Stop()
+			close(done)
+		}
 		go func() {
-			for range time.NewTicker(90 * time.Millisecond).C {
+			for {
+				select {
+				case <-done:
+					return
+				case <-ticker.C:
+				}
 				mu.Lock()
 				running := false
 				for _, l := range lines {
@@ -84,7 +96,7 @@ func newTerminalReporter() *progress.Reporter {
 			}
 		}()
 	}
-	return progress.New(func(ev progress.Event) {
+	return progress.NewWithClose(func(ev progress.Event) {
 		mu.Lock()
 		defer mu.Unlock()
 		l, ok := lines[ev.Phase]
@@ -114,5 +126,5 @@ func newTerminalReporter() *progress.Reporter {
 			}
 			fmt.Fprintf(out, "%-14s %s  %s %s\n", ev.Phase, status, l.detail, l.elapsed.Round(10*time.Millisecond))
 		}
-	})
+	}, stop)
 }

@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type GitLab struct {
@@ -36,7 +37,7 @@ func (g GitLab) request(ctx context.Context, method, path string, body io.Reader
 	}
 	c := g.Client
 	if c == nil {
-		c = http.DefaultClient
+		c = &http.Client{Timeout: 2 * time.Minute}
 	}
 	return c.Do(req)
 }
@@ -51,19 +52,34 @@ func (g GitLab) Comment(ctx context.Context, mr int, markdown string, images []s
 		}
 		var b bytes.Buffer
 		mw := multipart.NewWriter(&b)
-		p, _ := mw.CreateFormFile("file", filepath.Base(imagePath))
-		_, e = io.Copy(p, f)
-		f.Close()
-		mw.Close()
+		p, e := mw.CreateFormFile("file", filepath.Base(imagePath))
 		if e != nil {
+			_ = f.Close()
+			return e
+		}
+		_, e = io.Copy(p, f)
+		closeErr := f.Close()
+		if e != nil {
+			return e
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if e = mw.Close(); e != nil {
 			return e
 		}
 		resp, e := g.request(ctx, http.MethodPost, "/uploads", &b, mw.FormDataContentType())
 		if e != nil {
 			return e
 		}
-		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-		resp.Body.Close()
+		raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		closeErr = resp.Body.Close()
+		if readErr != nil {
+			return readErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
 		if resp.StatusCode/100 != 2 {
 			return fmt.Errorf("GitLab upload: %s", resp.Status)
 		}
@@ -87,14 +103,28 @@ func (g GitLab) Comment(ctx context.Context, mr int, markdown string, images []s
 	if e != nil {
 		return e
 	}
-	raw, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
-	resp.Body.Close()
+	raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	closeErr := resp.Body.Close()
+	if readErr != nil {
+		return readErr
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("GitLab notes: %s", resp.Status)
+	}
 	var notes []struct {
 		ID   int    `json:"id"`
 		Body string `json:"body"`
 	}
-	_ = json.Unmarshal(raw, &notes)
-	payload, _ := json.Marshal(map[string]string{"body": markdown})
+	if e = json.Unmarshal(raw, &notes); e != nil {
+		return fmt.Errorf("decode GitLab notes: %w", e)
+	}
+	payload, e := json.Marshal(map[string]string{"body": markdown})
+	if e != nil {
+		return e
+	}
 	for _, n := range notes {
 		if strings.Contains(n.Body, "<!-- impactr-comment:v1 -->") {
 			resp, e = g.request(ctx, http.MethodPut, path+"/"+strconv.Itoa(n.ID), bytes.NewReader(payload), "application/json")

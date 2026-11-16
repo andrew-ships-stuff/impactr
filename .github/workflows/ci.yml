@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: {go-version: "1.24.x"}
+        with: {go-version-file: go.mod}
       - run: go test ./...
       - run: go test -race ./...
       - run: go vet ./...
@@ -31,28 +31,3 @@ jobs:
         with:
           provider: none
           comment: "false"
-  publish-impact-comment:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: [dogfood]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
-    env:
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with: {go-version: "1.24.x"}
-      - run: go build -trimpath -o "$RUNNER_TEMP/impactr" ./cmd/impactr
-      - uses: actions/download-artifact@v4
-        with:
-          name: impactr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/impactr-artifacts
-      - run: >-
-          "$RUNNER_TEMP/impactr" validate-artifact --dir "$RUNNER_TEMP/impactr-artifacts"
-      - run: >-
-          "$RUNNER_TEMP/impactr" github comment --existing
-          --pr "${{ github.event.pull_request.number }}"
-          --repo "${{ github.repository }}"
-          --output "$RUNNER_TEMP/impactr-artifacts"

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	_ "image/png"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +14,14 @@ import (
 
 const MaxTotalSize int64 = 25 << 20
 
-func Validate(dir string) error {
+type Expectations struct {
+	BaseSHA string
+	HeadSHA string
+}
+
+func Validate(dir string) error { return ValidateExpected(dir, Expectations{}) }
+
+func ValidateExpected(dir string, want Expectations) error {
 	var total int64
 	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -54,6 +61,9 @@ func Validate(dir string) error {
 	}
 	var envelope struct {
 		SchemaVersion string `json:"schema_version"`
+		After         struct {
+			Provenance graph.Provenance `json:"provenance"`
+		} `json:"after"`
 	}
 	if err = json.Unmarshal(b, &envelope); err != nil {
 		return fmt.Errorf("invalid analysis JSON: %w", err)
@@ -61,17 +71,27 @@ func Validate(dir string) error {
 	if envelope.SchemaVersion != graph.SchemaVersion {
 		return fmt.Errorf("unsupported schema %q", envelope.SchemaVersion)
 	}
-	f, err := os.Open(filepath.Join(dir, "impact.png"))
+	if want.BaseSHA != "" && envelope.After.Provenance.BaseSHA != want.BaseSHA {
+		return fmt.Errorf("artifact base SHA mismatch: got %s", envelope.After.Provenance.BaseSHA)
+	}
+	if want.HeadSHA != "" && envelope.After.Provenance.HeadSHA != want.HeadSHA {
+		return fmt.Errorf("artifact head SHA mismatch: got %s", envelope.After.Provenance.HeadSHA)
+	}
+	images, err := filepath.Glob(filepath.Join(dir, "impact*.png"))
 	if err != nil {
 		return err
 	}
-	cfg, format, err := image.DecodeConfig(f)
-	_ = f.Close()
-	if err != nil {
-		return fmt.Errorf("invalid impact image: %w", err)
+	if len(images) == 0 {
+		return fmt.Errorf("missing impact image")
 	}
-	if format != "png" || cfg.Width < 1 || cfg.Height < 1 || cfg.Width > 4096 || cfg.Height > 4096 {
-		return fmt.Errorf("unsafe image dimensions or format")
+	for _, path := range images {
+		base := filepath.Base(path)
+		if base != "impact.png" && !validClusterImage(base) {
+			return fmt.Errorf("unexpected impact image %q", base)
+		}
+		if err = validatePNG(path); err != nil {
+			return err
+		}
 	}
 	md, err := os.ReadFile(filepath.Join(dir, "summary.md"))
 	if err != nil {
@@ -79,6 +99,37 @@ func Validate(dir string) error {
 	}
 	if !strings.Contains(string(md), "<!-- impactr-comment:v1 -->") {
 		return fmt.Errorf("missing Impactr comment marker")
+	}
+	return nil
+}
+
+func validClusterImage(name string) bool {
+	var n int
+	count, err := fmt.Sscanf(name, "impact-%d.png", &n)
+	return strings.HasSuffix(name, ".png") && err == nil && count == 1 && n >= 1 && n <= 16
+}
+
+func validatePNG(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	cfg, err := png.DecodeConfig(f)
+	_ = f.Close()
+	if err != nil {
+		return fmt.Errorf("invalid %s: %w", filepath.Base(path), err)
+	}
+	if cfg.Width < 1 || cfg.Height < 1 || cfg.Width > 4096 || cfg.Height > 4096 {
+		return fmt.Errorf("unsafe image dimensions in %s", filepath.Base(path))
+	}
+	f, err = os.Open(path)
+	if err != nil {
+		return err
+	}
+	_, _, err = image.Decode(f)
+	_ = f.Close()
+	if err != nil {
+		return fmt.Errorf("invalid %s payload: %w", filepath.Base(path), err)
 	}
 	return nil
 }
